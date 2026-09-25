@@ -59,19 +59,14 @@ var CNT_LABELS = ['0', '1', '2–3', '4–5', '6–10', '11–20', '21+'];
 
 var PRJ_LABELS = ['None', '1', '2–5', '6–10', '11+'];
 
-// --- map 01: accounts with several projects -----------------------------------------
-// The toggle above map 01: which project decides the column (phase) of an account.
-var PROJECT_MODES = [
-  { k: 'newest', t: 'Newest project' },
-  { k: 'advanced', t: 'Most advanced phase' },
-  { k: 'all', t: 'All projects' } // every project is counted in its own phase column
-];
-// "Newest project" = the project with the latest date in the first of these columns found in the projects sheet.
-// If the projects sheet has none of them, the phase from the accounts sheet (Phase_Group) is used.
-var PROJECT_DATE_COLS = ['createdon', 'createddate', 'created', 'opportunitycreatedon', 'estimatedclosedate', 'actualclosedate'];
+// --- map 01: open projects ------------------------------------------------------------
+// Map 01 places every current-pipeline account under the phase(s) of its OPEN projects.
+// A project is open when its status column (statecodename) matches this; a project sheet without a
+// status column counts every project as open.
+var OPEN_STATUS = /^open$/i;
 
 // --- app state (what is selected right now) - changed by the app, not by hand ---
-// units/pipes = selected service units / pipelines (pipes: [1] = Pipeline 1 on start),
+// units/pipes = selected service units / pipelines (empty = all),
 // view = which map tab (1-4), F / SF = filters, g = the account table (sort, column filters, search).
 var S = {
   sheets: [],
@@ -80,9 +75,8 @@ var S = {
   source: {},
   checked: 0,
   units: [],
-  pipes: [1],
+  pipes: [],
   view: 1,
-  projMode: 'newest', // map 01 toggle, see PROJECT_MODES
   db: 'pipeline', // 'pipeline' = everything, 'newdb' = only accounts validated on or after settings.newDbFrom
   settings: { newDbFrom: '2026-07-01' }, // shared settings from the server (admin panel)
   owners: [], // owners picked under the service units (empty = all owners)

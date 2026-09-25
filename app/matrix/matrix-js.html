@@ -64,27 +64,6 @@ function heatColor(t) {
   return 'rgb(' + c.join(',') + ')';
 }
 
-/** The toggle above map 01 (see PROJECT_MODES in core/config-js.html) */
-function projModeHtml() {
-  return (
-    '<div class="pmode"><span>Accounts with several projects</span><div class="seg">' +
-    PROJECT_MODES.map(function (m) {
-      return (
-        '<button class="' +
-        (S.projMode === m.k ? 'on' : '') +
-        '" onclick="setProjMode(\'' +
-        m.k +
-        '\')">' +
-        esc(m.t) +
-        '</button>'
-      );
-    }).join('') +
-    '</div>' +
-    (S.projMode === 'all' ? '<small>numbers = projects</small>' : '') +
-    '</div>'
-  );
-}
-
 function render() {
   var main = document.getElementById('main');
   if (!S.acc.length) return;
@@ -93,16 +72,17 @@ function render() {
     return def.filter(a) && pass(a);
   });
   var ft = filterText();
-  var projects = S.view === 1 && S.projMode === 'all'; // numbers count projects instead of accounts
   var h =
     '<div class="head"><div><h1>' +
     esc(def.title) +
-    '</h1><div class="meta">' +
+    ' <span class="cnt-title">(' +
+    data.length.toLocaleString('en-GB') +
+    (data.length === 1 ? ' account' : ' accounts') +
+    ')</span></h1><div class="meta">' +
     esc(scopeText()) +
     (ft ? ' · ' + esc(ft) : '') +
     '</div></div>' +
     '<div class="hright">' +
-    (S.view === 1 ? projModeHtml() : '') +
     '<label class="multi" title="Tick, then click several boxes (or row / column titles) to list their accounts together"><input type="checkbox" ' +
     (S.multiCell ? 'checked' : '') +
     ' onchange="S.multiCell=this.checked">select several boxes</label></div>' +
@@ -117,16 +97,26 @@ function render() {
   var cells = {},
     rowT = {},
     colT = {};
-  var total = 0;
+  // totals count UNIQUE accounts: an account in 2 boxes of a row counts once in that row's total
+  var rowSeen = {},
+    colSeen = {};
   data.forEach(function (a) {
     placesOf(def, a).forEach(function (p) {
       var k = p[0] + '§' + p[1];
-      (cells[k] = cells[k] || []).push(a);
-      rowT[p[0]] = (rowT[p[0]] || 0) + 1;
-      colT[p[1]] = (colT[p[1]] || 0) + 1;
-      total++;
+      if ((cells[k] = cells[k] || []).indexOf(a) < 0) cells[k].push(a);
+      var rk = p[0] + '|' + a.i,
+        ck = p[1] + '|' + a.i;
+      if (!rowSeen[rk]) {
+        rowSeen[rk] = 1;
+        rowT[p[0]] = (rowT[p[0]] || 0) + 1;
+      }
+      if (!colSeen[ck]) {
+        colSeen[ck] = 1;
+        colT[p[1]] = (colT[p[1]] || 0) + 1;
+      }
     });
   });
+  var total = data.length;
   var rows = def.rows.filter(function (x) {
     return !x.opt || rowT[x.k];
   });
@@ -198,7 +188,7 @@ function render() {
         '\')" title="' +
         esc(
           n.toLocaleString('en-GB') +
-            (projects ? (n === 1 ? ' project' : ' projects') : n === 1 ? ' account' : ' accounts') +
+            (n === 1 ? ' account' : ' accounts') +
             ' · ' +
             rw.t +
             ' × ' +
@@ -220,9 +210,7 @@ function render() {
       .join('') +
     '<td class="tot grand"><b>' +
     total.toLocaleString('en-GB') +
-    '</b> ' +
-    (projects ? 'projects' : 'acc.') +
-    '</td></tr>';
+    '</b> acc.</td></tr>';
   h += '</tbody></table></div>';
   S._cells = cells;
   S.sel = S.sel.filter(function (k) {

@@ -212,7 +212,9 @@ function selectLine(kind, k) {
   scrollToList();
 }
 
+/** Scrolls down to the table - not while "select several boxes" is ticked (you stay on the matrix to keep picking). */
 function scrollToList() {
+  if (S.multiCell) return;
   var el = document.getElementById('inl');
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }

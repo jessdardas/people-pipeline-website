@@ -145,18 +145,15 @@ function build(d) {
         else a.lists.push({ s: +si, j: j });
       });
     });
-    // phase + date of each project, for the map 01 toggle (newest / most advanced / all)
-    a.projInfo = a.projects.map(function (p) {
-      return { ph: phaseKey(cellBy(p.s, p.j, 'Phase_Group')), d: projDate(p) };
-    });
-    var newest = null,
-      best = -1;
-    a.projInfo.forEach(function (p) {
-      if (p.d != null && (!newest || p.d > newest.d)) newest = p;
-      best = Math.max(best, PHASES.indexOf(p.ph));
-    });
-    a.newestPhase = newest ? newest.ph : '';
-    a.maxPhase = best >= 0 ? PHASES[best] : '';
+    // map 01: the phases of the account's OPEN projects (each phase once), see OPEN_STATUS in core/config-js
+    a.openPhases = uniq(
+      a.projects
+        .filter(isOpenProject)
+        .map(function (p) {
+          var ph = phaseKey(cellBy(p.s, p.j, 'Phase_Group'));
+          return PHASES.indexOf(ph) >= 0 ? ph : 'nophase';
+        })
+    );
     a.projPhases = uniq(
       a.projects
         .map(function (p) {
@@ -210,14 +207,15 @@ function build(d) {
   buildSocialFilters();
 }
 
-/** The date of a project used for "Newest project" (first column of PROJECT_DATE_COLS in its sheet). */
-function projDate(p) {
-  var s = S.sheets[p.s];
-  if (s._dc === undefined) {
-    s._dc = -1;
-    for (var i = 0; i < PROJECT_DATE_COLS.length && s._dc < 0; i++) s._dc = s.hk.indexOf(PROJECT_DATE_COLS[i]);
-  }
-  return s._dc < 0 ? null : num(cv(p.s, s._dc, p.j));
+/** Is this project open? (status column statecodename / status / state; no such column = open) */
+function isOpenProject(p) {
+  var st = cellBy(p.s, p.j, 'statecodename');
+  if (st == null) st = cellBy(p.s, p.j, 'status');
+  if (st == null) st = cellBy(p.s, p.j, 'statecode');
+  if (st == null) return !['statecodename', 'status', 'statecode'].some(function (k) {
+    return S.sheets[p.s].hk.indexOf(k) >= 0; // the column exists but is empty for this project: not open
+  });
+  return OPEN_STATUS.test(String(st).trim());
 }
 
 function uniq(a) {
