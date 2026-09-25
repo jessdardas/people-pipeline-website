@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>People Pipeline</title>
+<link rel="icon" href="data:,">
+</head>
+<body>
+<p id="boot" style="font:14px sans-serif;color:#888;padding:40px">Loading People Pipeline…</p>
+<script>
+/*
+ * PEOPLE PIPELINE - website (IIS) start page.
+ * The page itself is the SAME app/ folder as the Apps Script project. This loader does what Apps Script does
+ * on its server: it reads app/index.html, pastes every include('…') file into it, and adds the website's
+ * data connection (site/source.js) just before the app starts (app/core/main-js). Nothing to build.
+ */
+(function () {
+  var nc = { cache: 'no-store' };
+  var get = function (u) {
+    return fetch(u, nc).then(function (r) {
+      if (!r.ok) throw new Error(u + ' (' + r.status + ')');
+      return r.text();
+    });
+  };
+  get('app/index.html')
+    .then(function (page) {
+      var names = [],
+        re = /<\?!= include\('([^']+)'\); \?>/g,
+        m;
+      while ((m = re.exec(page))) names.push(m[1]);
+      return Promise.all(names.map(function (n) { return get(n + '.html'); })).then(function (parts) {
+        names.forEach(function (n, i) {
+          var add = parts[i];
+          if (n === 'app/core/main-js') {
+            // the website's own parts, loaded right before the app starts
+            add =
+              '<script src="site/vendor/xlsx.full.min.js"><\/script>' +
+              '<script src="server/Pipeline.js"><\/script>' +
+              '<script src="site/source.js"><\/script>' +
+              add;
+          }
+          page = page.replace("<?!= include('" + n + "'); ?>", function () { return add; });
+        });
+        page = page.replace('<base target="_top">', '<link rel="icon" href="data:,">');
+        document.open();
+        document.write(page);
+        document.close();
+      });
+    })
+    .catch(function (e) {
+      document.getElementById('boot').textContent = 'Could not load the app: ' + e.message;
+    });
+})();
+</script>
+</body>
+</html>

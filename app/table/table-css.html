@@ -1,0 +1,280 @@
+<style>
+/* ==========================================================================
+   TABLE: the list of accounts under the matrix (and the tables in the details panel)
+   Filled by table/table-js.html (listBlock, renderList, openHead)
+   ========================================================================== */
+
+/* the white card around it */
+.inl {
+  position: relative;
+  margin-top: 22px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 16px 20px 18px;
+}
+
+/* card header: "123 accounts" + search + Excel / PDF + × */
+.inh {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px 20px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+}
+.inh h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+}
+.dtools {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.dtools input {
+  width: 240px;
+  border: 1.5px solid transparent;
+  background: var(--soft);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  outline: none;
+}
+.dtools input:focus {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+.x2 {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--text-faint);
+  margin-left: 4px;
+}
+.x2:hover {
+  background: var(--soft);
+  color: var(--text);
+}
+
+/* the table itself: square corners, rows spaced apart */
+/* no sideways scrolling: the table always fits the screen, long text wraps onto a second line */
+.tw {
+  overflow: visible;
+}
+table.tb {
+  border-collapse: separate;
+  border-spacing: 0 4px; /* the space between rows */
+  width: 100%;
+  font-size: 12.5px;
+}
+.tb th {
+  text-align: left;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-soft);
+  background: var(--soft);
+  padding: 9px 8px;
+  vertical-align: bottom;
+  cursor: pointer;
+  position: sticky;
+  top: 0;
+}
+.tb th:hover,
+.tb th.s {
+  color: var(--text); /* sorted or filtered column */
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.tb td {
+  padding: 8px 8px;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: break-word; /* wrap between words; only a word longer than the column is split */
+}
+.tb td:first-child {
+  border-left: 1px solid var(--line);
+}
+.tb td:last-child {
+  border-right: 1px solid var(--line);
+}
+.tb td b {
+  font-weight: 700;
+}
+.tb tbody tr {
+  cursor: pointer;
+}
+.tb tbody tr:hover td {
+  background: #f7f7f7;
+  border-color: #bdbdbd;
+}
+.tb td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap; /* keep "€ 2,500,000" on one line */
+}
+/* the # counter column */
+.tb .cnt {
+  width: 1%;
+  text-align: right;
+  color: var(--text-faint);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  padding-right: 4px;
+  cursor: default;
+}
+.tb th.cnt:hover {
+  color: var(--text-soft);
+}
+/* the row of an account found with search */
+.tb tr.hl td {
+  background: #fff6cf !important;
+}
+.fdot {
+  font-style: normal;
+  font-size: 8px;
+  vertical-align: middle;
+  color: var(--text);
+}
+.nomatch {
+  padding: 12px 4px;
+}
+
+/* "Show more (… left)" */
+.more {
+  display: block;
+  margin: 14px auto 0;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 18px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+.more:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* menu under a column title: sort + filter by value */
+.hpop {
+  position: absolute;
+  z-index: 45;
+  width: 290px;
+  max-height: 430px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  display: none;
+  flex-direction: column;
+}
+.hpop.open {
+  display: flex;
+}
+.hp-s {
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.hp-s button {
+  text-align: left;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  border-radius: var(--radius);
+}
+.hp-s button:hover {
+  background: var(--soft);
+}
+.hpop .fp-list {
+  max-height: 220px;
+}
+.hpop .fp-f {
+  grid-column: auto;
+}
+
+/* smaller screens: tighter table so it still fits without scrolling sideways */
+@media (max-width: 1200px) {
+  table.tb {
+    font-size: 11.5px;
+  }
+  .tb th,
+  .tb td {
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+  .tb td {
+    overflow-wrap: anywhere;
+  }
+}
+
+/* "Columns" button (outlined) */
+.btn.ghost {
+  background: var(--surface);
+  color: var(--text);
+  border: 1.5px solid var(--line);
+  padding: 5px 14px;
+}
+.btn.ghost:hover {
+  border-color: var(--text);
+  filter: none;
+}
+/* drag handle on the right edge of every column title */
+.rsz {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 7px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 2;
+}
+.rsz:hover {
+  background: rgba(0, 0, 0, 0.12);
+}
+/* Columns panel: show / name / order */
+.cpop {
+  right: 0;
+  top: 58px;
+  width: 340px;
+  max-height: 520px;
+}
+.cols-list {
+  overflow: auto;
+  padding: 4px 10px;
+}
+.colrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+}
+.colrow .colname {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  outline: none;
+}
+.colrow .colname:focus {
+  border-color: var(--text);
+}
+.colrow button {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 12px;
+}
+.colrow button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+</style>

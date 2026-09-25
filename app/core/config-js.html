@@ -1,0 +1,105 @@
+<script>
+/* Settings you are most likely to change: service units, pipelines, buckets, app state */
+// --- dates ---------------------------------------------------------------
+var NEVER = 36600; // Excel dates on/before 1 Jan 2000 mean "never" in the query
+
+var M = 30.4375; // days per month
+
+// --- service units (the buttons at the top left) ---------------------------
+// Order of the buttons. Units found in the file but not listed here are added at the end.
+var UNIT_ORDER = [
+  'amsterdam',
+  'antwerp',
+  'bologna',
+  'london',
+  'paris',
+  'new york',
+  'stuttgart',
+  'beirut',
+  'dubai',
+  'core',
+  'marine'
+];
+
+// Units shown together under one heading (k = id, t = label, units = members).
+var GROUPS = [{ k: 'benelux', t: 'Benelux', units: ['amsterdam', 'antwerp'] }];
+
+// --- pipelines (the dropdown at the top right) ------------------------------
+// k = number found in the "pipeline" column, t = label, s = description in the menu.
+var PIPES = [
+  { k: 1, t: 'Pipeline 1', s: 'paid proposal all + pitch ≥ P1 + direct supply ≥ P3' },
+  { k: 2, t: 'Pipeline 2', s: 'pitch = P0 + direct supply ≤ P2' },
+  { k: 3, t: 'Pipeline 3', s: 'claims all' }
+];
+
+// --- matrix / filter buckets ----------------------------------------------
+// Project phases = columns of map 01.
+var PHASES = ['P0', 'P1', 'P2', 'P3', 'P4', 'P5'];
+
+// Classifications that make up map 03 "No business".
+var NB = ['past demand', 'met in', 'met out', 'contacted', 'not contacted'];
+
+// Post-P1 value buckets: the edges (in €) and the label for each bucket (one more label than edges).
+var VAL_EDGES = [5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000];
+
+var VAL_LABELS = [
+  '0–5k',
+  '5k–10k',
+  '10k–25k',
+  '25k–50k',
+  '50k–100k',
+  '100k–250k',
+  '250k–500k',
+  '500k–1M',
+  '1M+'
+];
+
+// Buckets for project counts and for the number of projects in the list.
+var CNT_LABELS = ['0', '1', '2–3', '4–5', '6–10', '11–20', '21+'];
+
+var PRJ_LABELS = ['None', '1', '2–5', '6–10', '11+'];
+
+// --- map 01: accounts with several projects -----------------------------------------
+// The toggle above map 01: which project decides the column (phase) of an account.
+var PROJECT_MODES = [
+  { k: 'newest', t: 'Newest project' },
+  { k: 'advanced', t: 'Most advanced phase' },
+  { k: 'all', t: 'All projects' } // every project is counted in its own phase column
+];
+// "Newest project" = the project with the latest date in the first of these columns found in the projects sheet.
+// If the projects sheet has none of them, the phase from the accounts sheet (Phase_Group) is used.
+var PROJECT_DATE_COLS = ['createdon', 'createddate', 'created', 'opportunitycreatedon', 'estimatedclosedate', 'actualclosedate'];
+
+// --- app state (what is selected right now) - changed by the app, not by hand ---
+// units/pipes = selected service units / pipelines (pipes: [1] = Pipeline 1 on start),
+// view = which map tab (1-4), F / SF = filters, g = the account table (sort, column filters, search).
+var S = {
+  sheets: [],
+  acc: [],
+  byId: {},
+  source: {},
+  checked: 0,
+  units: [],
+  pipes: [1],
+  view: 1,
+  projMode: 'newest', // map 01 toggle, see PROJECT_MODES
+  db: 'pipeline', // 'pipeline' = everything, 'newdb' = only accounts validated on or after settings.newDbFrom
+  settings: { newDbFrom: '2026-07-01' }, // shared settings from the server (admin panel)
+  owners: [], // owners picked under the service units (empty = all owners)
+  sel: [], // selected matrix cells ("row§column"); their accounts are listed under the matrix
+  multiCell: false, // "select several" boxes in the matrix
+  F: {},
+  social: 'all',
+  SF: {},
+  cell: null,
+  list: [],
+  listMeta: '',
+  detail: null,
+  hl: null,
+  g: { sort: { k: 'lm', d: 1 }, cf: {}, q: '', limit: 100 },
+  multiUnit: false,
+  pm: false,
+  pop: null,
+  busy: false
+};
+</script>

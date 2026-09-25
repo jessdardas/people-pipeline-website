@@ -1,0 +1,308 @@
+<script>
+/* The "Filters" button and its panel */
+function renderFilters() {
+  var n =
+    activeF().reduce(function (t, f) {
+      return t + S.F[f.k].length;
+    }, 0) +
+    (S.social !== 'all' ? 1 : 0) +
+    activeSF().reduce(function (t, f) {
+      return t + S.SF[f.k].length;
+    }, 0);
+  document.getElementById('fbtn').innerHTML =
+    '<button class="fb' +
+    (n ? ' on' : '') +
+    '" onclick="togglePanel()">Filters' +
+    (n ? ' <span>' + n + '</span>' : '') +
+    '</button>' +
+    (n ? '<button class="fclear" onclick="clearFilters()">clear</button>' : '');
+}
+
+function clearFilters() {
+  S.F = {};
+  S.SF = {};
+  S.social = 'all';
+  changed();
+}
+
+function isSF(k) {
+  return k.charAt(0) === 's' && /^s\d+_\d+$/.test(k);
+}
+
+function fDefOf(k) {
+  return (
+    FDEF.filter(function (f) {
+      return f.k === k;
+    })[0] ||
+    SFDEF.filter(function (f) {
+      return f.k === k;
+    })[0]
+  );
+}
+
+function popOptions(k) {
+  var f = fDefOf(k),
+    cnt = {},
+    sf = isSF(k);
+  S.acc.forEach(function (a) {
+    if (!viewFilter(a) || !pass(a, k)) return;
+    if (sf) {
+      var seen = {};
+      a.social.forEach(function (e) {
+        if (e.s !== f.s) return;
+        var v = cv(e.s, f.c, e.j);
+        v = v == null ? '(none)' : String(v);
+        if (!seen[v]) {
+          seen[v] = 1;
+          cnt[v] = (cnt[v] || 0) + 1;
+        }
+      });
+    } else {
+      var v = a.fv[k];
+      cnt[v] = (cnt[v] || 0) + 1;
+    }
+  });
+  // include every value of the whole file (even when 0 in the current view) + the selected ones
+  if (sf) {
+    for (var j = 0; j < S.sheets[f.s].n; j++) {
+      var v2 = cv(f.s, f.c, j);
+      v2 = v2 == null ? '(none)' : String(v2);
+      if (!(v2 in cnt)) cnt[v2] = 0;
+    }
+  } else
+    S.acc.forEach(function (a) {
+      if (!(a.fv[k] in cnt)) cnt[a.fv[k]] = 0;
+    });
+  var sel = (sf ? S.SF[k] : S.F[k]) || [];
+  sel.forEach(function (v) {
+    if (!(v in cnt)) cnt[v] = 0;
+  });
+  var keys = Object.keys(cnt);
+  if (f.order)
+    keys.sort(function (a, b) {
+      var ia = f.order.indexOf(a),
+        ib = f.order.indexOf(b);
+      return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib) || cnt[b] - cnt[a];
+    });
+  else if (k === 'cls') {
+    var ord = {};
+    S.acc.forEach(function (a) {
+      if (ord[a.cls] == null) ord[a.cls] = a.clsOrder == null ? 99 : a.clsOrder;
+    });
+    keys.sort(function (a, b) {
+      return (ord[a] == null ? 99 : ord[a]) - (ord[b] == null ? 99 : ord[b]);
+    });
+  } else
+    keys.sort(function (a, b) {
+      return (a === '(none)') - (b === '(none)') || cnt[b] - cnt[a] || a.localeCompare(b);
+    });
+  return keys.map(function (v) {
+    return { v: v, t: f.lab ? f.lab(v) : sf ? v : cap(v), n: cnt[v], on: sel.indexOf(v) >= 0 };
+  });
+}
+
+/* ---------- filter panel: choose, then Apply ---------- */
+function clone(o) {
+  return JSON.parse(JSON.stringify(o));
+}
+
+function withDraft(fn) {
+  var keep = [S.F, S.SF, S.social];
+  S.F = S.draft.F;
+  S.SF = S.draft.SF;
+  S.social = S.draft.social;
+  try {
+    return fn();
+  } finally {
+    S.F = keep[0];
+    S.SF = keep[1];
+    S.social = keep[2];
+  }
+}
+
+function togglePanel() {
+  if (S.panel) return closePanel();
+  S.panel = true;
+  S.draft = { F: clone(S.F), SF: clone(S.SF), social: S.social };
+  S.pop = S.pop && (S.pop === 'social' || fDefOf(S.pop)) ? S.pop : 'cls';
+  S.popQ = '';
+  renderPanel();
+  document.getElementById('fpanel').classList.add('open');
+}
+
+function closePanel() {
+  S.panel = false;
+  var p = document.getElementById('fpanel');
+  if (p) p.classList.remove('open');
+}
+
+function panelKeys() {
+  var k = FDEF.map(function (f) {
+    return { k: f.k, t: f.t };
+  });
+  k.push({ k: 'social', t: 'Social media' });
+  if (S.draft.social === 'yes')
+    SFDEF.forEach(function (f) {
+      k.push({ k: f.k, t: f.t, sub: 1 });
+    });
+  return k;
+}
+
+function draftCount(k) {
+  if (k === 'social') return S.draft.social === 'all' ? 0 : 1;
+  var v = (isSF(k) ? S.draft.SF : S.draft.F)[k];
+  return v ? v.length : 0;
+}
+
+function renderPanel() {
+  var keys = panelKeys();
+  if (
+    !keys.some(function (x) {
+      return x.k === S.pop;
+    })
+  )
+    S.pop = 'cls';
+  var h =
+    '<div class="fp-l">' +
+    keys
+      .map(function (x) {
+        var n = draftCount(x.k);
+        return (
+          '<button class="' +
+          (S.pop === x.k ? 'on ' : '') +
+          (x.sub ? 'sub' : '') +
+          '" onclick="panelPick(\'' +
+          x.k +
+          '\')">' +
+          esc(x.t) +
+          (n ? '<span>' + n + '</span>' : '') +
+          '</button>'
+        );
+      })
+      .join('') +
+    '</div>';
+  h += '<div class="fp-r" id="fpOpts"></div>';
+  h +=
+    '<div class="fp-f"><button class="lnk" onclick="panelReset()">Reset</button><span class="ml"></span><button class="lnk" onclick="closePanel()">Cancel</button><button class="btn" onclick="panelApply()">Apply</button></div>';
+  document.getElementById('fpanel').innerHTML = h;
+  renderPanelOpts();
+}
+
+function renderPanelOpts() {
+  var k = S.pop,
+    box = document.getElementById('fpOpts');
+  if (!box) return;
+  if (k === 'social') {
+    box.innerHTML =
+      '<div class="fp-t">Social media</div><div class="fp-list">' +
+      [
+        ['all', 'Both'],
+        ['yes', 'Has social media'],
+        ['no', 'No social media']
+      ]
+        .map(function (o) {
+          return (
+            '<label><input type="radio" name="soc" ' +
+            (S.draft.social === o[0] ? 'checked' : '') +
+            ' onchange="S.draft.social=\'' +
+            o[0] +
+            "';if(S.draft.social!=='yes')S.draft.SF={};renderPanel()\"><span>" +
+            o[1] +
+            '</span></label>'
+          );
+        })
+        .join('') +
+      '</div>' +
+      (S.draft.social === 'yes'
+        ? '<p class="meta" style="margin:10px 14px">Platform, followers and the other social filters are now on the left.</p>'
+        : '');
+    return;
+  }
+  var f = fDefOf(k);
+  box.innerHTML =
+    '<div class="fp-t">' +
+    esc(f.t) +
+    '<span class="ml"></span><button class="lnk" onclick="panelAll(1)">all</button><button class="lnk" onclick="panelAll(0)">none</button></div>' +
+    '<input class="fp-q" id="popQ" placeholder="Search…" value="' +
+    esc(S.popQ || '') +
+    '" oninput="S.popQ=this.value;renderPanelList()"><div id="fpList" class="fp-list"></div>';
+  renderPanelList();
+}
+
+function renderPanelList() {
+  var q = (S.popQ || '').toLowerCase(),
+    k = S.pop;
+  S.popOpts = withDraft(function () {
+    return popOptions(k);
+  }).filter(function (o) {
+    return !q || o.t.toLowerCase().indexOf(q) >= 0;
+  });
+  document.getElementById('fpList').innerHTML =
+    S.popOpts
+      .map(function (o, i) {
+        return (
+          '<label><input type="checkbox" ' +
+          (o.on ? 'checked' : '') +
+          ' onchange="panelToggle(' +
+          i +
+          ')"><span>' +
+          esc(o.t) +
+          '</span><small>' +
+          o.n.toLocaleString('en-GB') +
+          '</small></label>'
+        );
+      })
+      .join('') || '<label class="novals"><span>No values</span></label>';
+}
+
+function panelPick(k) {
+  S.pop = k;
+  S.popQ = '';
+  renderPanel();
+}
+
+function panelToggle(i) {
+  var k = S.pop,
+    o = S.popOpts[i],
+    box = isSF(k) ? S.draft.SF : S.draft.F,
+    sel = (box[k] = box[k] || []);
+  var ix = sel.indexOf(o.v);
+  if (ix >= 0) sel.splice(ix, 1);
+  else sel.push(o.v);
+  if (!sel.length) delete box[k];
+  var l = document.querySelector('.fp-l button.on');
+  if (l) {
+    var n = draftCount(k);
+    l.innerHTML = esc(fDefOf(k).t) + (n ? '<span>' + n + '</span>' : '');
+  }
+}
+
+function panelAll(on) {
+  var k = S.pop,
+    box = isSF(k) ? S.draft.SF : S.draft.F;
+  if (on) {
+    var sel = (box[k] = box[k] || []);
+    S.popOpts.forEach(function (o) {
+      if (sel.indexOf(o.v) < 0) sel.push(o.v);
+    });
+  } else delete box[k];
+  renderPanel();
+}
+
+function panelReset() {
+  S.draft = { F: {}, SF: {}, social: 'all' };
+  renderPanel();
+}
+
+function panelApply() {
+  S.F = S.draft.F;
+  S.SF = S.draft.SF;
+  S.social = S.draft.social;
+  changed();
+}
+
+document.addEventListener('mousedown', function (e) {
+  if (S.panel && !e.target.closest('.fwrap')) closePanel();
+  if (!e.target.closest('.gs')) document.getElementById('gres').classList.remove('open');
+});
+</script>

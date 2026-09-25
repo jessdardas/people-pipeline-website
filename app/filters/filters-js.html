@@ -1,0 +1,118 @@
+<script>
+/* Filter definitions and the logic that decides if an account passes */
+var FDEF = [
+  { k: 'cls', t: 'Classification' },
+  { k: 'cat', t: 'Category', lab: cap },
+  { k: 'ind', t: 'Industry', lab: cap },
+  { k: 'country', t: 'Country', lab: cap },
+  { k: 'owner', t: 'Owner', lab: cap },
+  { k: 'metin', t: 'Met in', lab: cap, order: ['yes', 'no'] },
+  { k: 'phase', t: 'Phase (latest)', order: PHASES.concat(['No phase']) },
+  {
+    k: 'val',
+    t: 'Post-P1 value',
+    order: ['No value'].concat(VAL_LABELS),
+    lab: function (v) {
+      return v === 'No value' ? v : '€ ' + v;
+    }
+  },
+  { k: 'postn', t: 'Post-P1 projects', order: CNT_LABELS },
+  { k: 'pren', t: 'Pre-P1 projects', order: CNT_LABELS },
+  { k: 'proj', t: 'Projects (list)', order: PRJ_LABELS },
+  {
+    k: 'valid',
+    t: 'Last validated',
+    order: ['< 3 months', '3–6 months', '6–12 months', '1–2 years', '2+ years', 'Not validated']
+  }
+];
+
+var SFDEF = [];
+
+function buildSocialFilters() {
+  SFDEF = [];
+  S.sheets.forEach(function (s) {
+    if (s.role !== 'social') return;
+    s.cols.forEach(function (col, c) {
+      var h = s.hk[c];
+      if (h === 'accountid') return;
+      var vals = {};
+      for (var j = 0; j < s.n; j++) {
+        var v = cv(s.si, c, j);
+        if (v != null) vals[v] = 1;
+      }
+      var n = Object.keys(vals).length;
+      if (n >= 1 && n <= 40) SFDEF.push({ k: 's' + s.si + '_' + c, t: pretty(col.h), s: s.si, c: c });
+    });
+  });
+  Object.keys(S.SF).forEach(function (k) {
+    if (
+      !SFDEF.some(function (f) {
+        return f.k === k;
+      })
+    )
+      delete S.SF[k];
+  });
+}
+
+function activeF() {
+  return FDEF.filter(function (f) {
+    return S.F[f.k] && S.F[f.k].length;
+  });
+}
+
+function activeSF() {
+  return S.social === 'yes'
+    ? SFDEF.filter(function (f) {
+        return S.SF[f.k] && S.SF[f.k].length;
+      })
+    : [];
+}
+
+function socialMatch(a, skip) {
+  var act = activeSF().filter(function (f) {
+    return f.k !== skip;
+  });
+  if (!act.length) return true;
+  return a.social.some(function (e) {
+    return act.every(function (f) {
+      if (f.s !== e.s) return true;
+      var v = cv(e.s, f.c, e.j);
+      return S.SF[f.k].indexOf(v == null ? '(none)' : String(v)) >= 0;
+    });
+  });
+}
+
+/** New DB: only accounts validated on or after the date in the admin settings (people pipeline = everything). */
+function inDb(a) {
+  if (S.db !== 'newdb') return true;
+  return a.validDate != null && a.validDate >= newDbSerial();
+}
+
+function newDbSerial() {
+  var m = String(S.settings.newDbFrom || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) / 864e5 + 25569 : 0;
+}
+
+function pass(a, skip) {
+  if (skip !== 'units' && S.units.length && S.units.indexOf(a.su) < 0) return false;
+  if (skip !== 'owners' && S.owners.length && S.owners.indexOf(a.owner || '(none)') < 0) return false;
+  // pipelines only count on map 01; the other maps always show every pipeline
+  if (skip !== 'pipes' && S.view === 1 && S.pipes.length && S.pipes.indexOf(a.pipe) < 0) return false;
+  if (skip !== 'db' && !inDb(a)) return false;
+  for (var i = 0; i < FDEF.length; i++) {
+    var f = FDEF[i];
+    if (f.k === skip) continue;
+    var sel = S.F[f.k];
+    if (sel && sel.length && sel.indexOf(a.fv[f.k]) < 0) return false;
+  }
+  if (skip !== 'social') {
+    if (S.social === 'yes' && !a.social.length) return false;
+    if (S.social === 'no' && a.social.length) return false;
+  }
+  return socialMatch(a, skip);
+}
+
+function viewFilter(a) {
+  return MAPS[S.view].filter(a);
+}
+</script>

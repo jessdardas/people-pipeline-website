@@ -1,0 +1,109 @@
+<script>
+/* Search box at the top + jump to an account on the map */
+function gSearch() {
+  var q = document.getElementById('gq').value.toLowerCase().trim(),
+    box = document.getElementById('gres');
+  if (q.length < 2 || !S.acc.length) {
+    box.classList.remove('open');
+    return;
+  }
+  var res = S.acc.filter(function (a) {
+    return a.lname.indexOf(q) >= 0;
+  });
+  res.sort(function (a, b) {
+    return (b.lname.indexOf(q) === 0) - (a.lname.indexOf(q) === 0) || a.name.length - b.name.length;
+  });
+  S.gres = res.slice(0, 15);
+  S.gAct = 0;
+  box.innerHTML =
+    S.gres
+      .map(function (a, i) {
+        return (
+          '<button class="' +
+          (i === 0 ? 'act' : '') +
+          '" onclick="goTo(' +
+          a.i +
+          ')"><b>' +
+          esc(a.name) +
+          '</b><small>' +
+          esc(unitLabel(a.su)) +
+          ' · ' +
+          esc(locate(a).txt) +
+          '</small></button>'
+        );
+      })
+      .join('') +
+      (res.length > 15 ? '<div class="none">' + (res.length - 15) + ' more — keep typing</div>' : '') ||
+    '<div class="none">No account found.</div>';
+  box.classList.add('open');
+}
+
+function gKey(e) {
+  var box = document.getElementById('gres'),
+    btns = box.querySelectorAll('button');
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (!btns.length) return;
+    S.gAct = (S.gAct + (e.key === 'ArrowDown' ? 1 : -1) + btns.length) % btns.length;
+    btns.forEach(function (b, i) {
+      b.classList.toggle('act', i === S.gAct);
+    });
+  } else if (e.key === 'Enter') {
+    if (S.gres && S.gres[S.gAct]) goTo(S.gres[S.gAct].i);
+  } else if (e.key === 'Escape') box.classList.remove('open');
+}
+
+function goTo(i) {
+  var a = S.acc[i];
+  if (!a) return;
+  document.getElementById('gres').classList.remove('open');
+  var loc = locate(a),
+    adj = [];
+  // only loosen what would hide this account – the numbers stay as they are otherwise
+  if (S.units.length && S.units.indexOf(a.su) < 0) {
+    if (S.multiUnit) S.units.push(a.su);
+    else S.units = [a.su];
+    adj.push('service unit ' + unitLabel(a.su));
+  }
+  if (S.owners.length && S.owners.indexOf(a.owner || '(none)') < 0) {
+    S.owners.push(a.owner || '(none)');
+    adj.push('owner');
+  }
+  if (!inDb(a)) {
+    S.db = 'pipeline';
+    adj.push('New DB → People pipeline');
+  }
+  if (loc.v === 1 && S.pipes.length && S.pipes.indexOf(a.pipe) < 0) {
+    if (a.pipe) S.pipes.push(a.pipe);
+    else S.pipes = [];
+    adj.push('pipeline');
+  }
+  FDEF.forEach(function (f) {
+    var sel = S.F[f.k];
+    if (sel && sel.length && sel.indexOf(a.fv[f.k]) < 0) {
+      delete S.F[f.k];
+      adj.push(f.t.toLowerCase());
+    }
+  });
+  if ((S.social === 'yes' && !a.social.length) || (S.social === 'no' && a.social.length)) {
+    S.social = 'all';
+    S.SF = {};
+    adj.push('social media');
+  } else if (!socialMatch(a)) {
+    S.SF = {};
+    adj.push('social filters');
+  }
+  S.view = loc.v;
+  S.hl = { id: a.id, v: loc.v, key: loc.key };
+  closePanel();
+  closeDrawer();
+  S.sel = [loc.key];
+  S.g = newGrid();
+  renderAll();
+  setTimeout(function () {
+    var el = document.querySelector('td.hl');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 30);
+  toast((adj.length ? 'Filters loosened to show it (' + adj.join(', ') + ') · ' : '') + loc.txt + '');
+}
+</script>

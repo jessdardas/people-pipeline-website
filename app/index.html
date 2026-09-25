@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!--
+    This is the page skeleton. Every include('…') line pastes in one file of the app/ folder
+    when the page opens (include() is in server/Code.js). The name is the file's path without ".html".
+    Every part of the screen has its own folder in app/ - see docs/SCREEN-GUIDE.md.
+  -->
+
+  <!-- Styles -->
+  <?!= include('app/core/base-css'); ?>
+  <?!= include('app/header/header-css'); ?>
+  <?!= include('app/search/search-css'); ?>
+  <?!= include('app/filters/filters-css'); ?>
+  <?!= include('app/matrix/matrix-css'); ?>
+  <?!= include('app/table/table-css'); ?>
+  <?!= include('app/details/details-css'); ?>
+  <?!= include('app/admin/admin-css'); ?>
+</head>
+<body>
+  <!-- Top of the page: logo, refresh info, search, service units, pipelines, tabs, filters -->
+  <?!= include('app/header/header'); ?>
+
+  <!-- The matrix and the account table are drawn in here by matrix/matrix-js.html and table/table-js.html -->
+  <main id="main">
+    <div class="loading"><span class="spinner"></span>Reading the source file…</div>
+  </main>
+
+  <!-- Account details side panel -->
+  <?!= include('app/details/details'); ?>
+
+  <!-- Hidden admin button (bottom right) + admin panel -->
+  <?!= include('app/admin/admin'); ?>
+
+  <!-- Small message at the bottom of the screen (toast() in core/helpers-js.html) -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Scripts: the order matters - core/main-js.html must stay last (it starts the app) -->
+  <?!= include('app/core/config-js'); ?>
+  <?!= include('app/core/helpers-js'); ?>
+  <?!= include('app/core/data-js'); ?>
+  <?!= include('app/filters/filters-js'); ?>
+  <?!= include('app/matrix/maps-js'); ?>
+  <?!= include('app/header/header-js'); ?>
+  <?!= include('app/filters/filter-panel-js'); ?>
+  <?!= include('app/matrix/matrix-js'); ?>
+  <?!= include('app/table/table-js'); ?>
+  <?!= include('app/details/details-js'); ?>
+  <?!= include('app/search/search-js'); ?>
+  <?!= include('app/export/export-js'); ?>
+  <?!= include('app/admin/admin-js'); ?>
+  <?!= include('app/core/main-js'); ?>
+</body>
+</html>

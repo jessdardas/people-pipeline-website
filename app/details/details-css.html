@@ -1,0 +1,151 @@
+<style>
+/* ==========================================================================
+   DETAILS: the side panel that opens when you click an account
+   Markup: details/details.html · filled by details/details-js.html (openDetail)
+   ========================================================================== */
+
+/* the grey layer behind the panel */
+.dim {
+  position: fixed;
+  inset: 0;
+  background: rgba(30, 27, 46, 0.28);
+  backdrop-filter: blur(2px);
+  display: none;
+  z-index: 20;
+}
+.dim.open {
+  display: block;
+}
+
+/* the panel, sliding in from the right */
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(680px, 100vw);
+  background: var(--surface);
+  border-radius: 0;
+  box-shadow: var(--shadow-lg);
+  transform: translateX(105%);
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.drawer.open {
+  transform: none;
+}
+
+/* panel header: account name + unit · classification · category */
+.dh {
+  position: relative;
+  padding: 24px 28px 18px;
+  background: var(--soft);
+}
+.dh h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+  padding-right: 40px;
+}
+.dh .meta {
+  color: var(--text-soft);
+}
+/* the × button */
+.x {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 20px;
+  line-height: 1;
+  color: var(--text-soft);
+  display: flex; /* centres the × */
+  align-items: center;
+  justify-content: center;
+  padding: 0 0 2px;
+}
+.x:hover {
+  color: var(--text);
+}
+
+/* panel body */
+.det {
+  overflow: auto;
+  flex: 1;
+  padding: 16px 28px 40px;
+}
+
+/* section titles: Overview, Projects (3), Social media (1) … */
+.det h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  margin: 26px 0 10px;
+}
+.det h3::before {
+  content: '';
+  width: 4px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+/* "Current pipeline › … — Show on map" */
+.loc {
+  background: var(--accent-soft);
+  padding: 10px 14px;
+  font-size: 12.5px;
+  margin: 6px 0 4px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+.loc button {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.loc button:hover {
+  text-decoration: underline;
+}
+
+/* label / value list (Overview, More details) */
+.kv {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.kv div {
+  padding: 7px 12px;
+  border-top: 1px solid var(--soft);
+  font-size: 12.5px;
+}
+.kv div:nth-child(-n + 2) {
+  border-top: 0;
+}
+.kv div:nth-child(odd) {
+  color: var(--text-soft);
+  background: #fafafa;
+}
+
+/* tables inside the panel (projects, social media) */
+.det .tb th,
+.det .tb tbody tr {
+  cursor: default;
+}
+.det .tb th:hover {
+  color: var(--text-soft);
+}
+</style>

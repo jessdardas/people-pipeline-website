@@ -1,0 +1,253 @@
+<script>
+/* Excel / PDF export */
+// xlsx-js-style = SheetJS + cell styles (bold headers, fills, borders)
+var XLSX_URL = 'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
+
+var JSPDF_URL = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+
+var AUTOTABLE_URL =
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js';
+
+function expRecord(a) {
+  return {
+    Account: a.name,
+    'Service unit': unitLabel(a.su),
+    Classification: cap(a.cls),
+    Category: cap(a.category),
+    'Sub-category': cap(a.orig),
+    Industry: cap(a.industry),
+    Country: cap(a.country),
+    Owner: cap(a.owner),
+    'Met in': a.metIn,
+    'Phase (latest)': a.phase,
+    Pipeline: a.pipe ? 'Pipeline ' + a.pipe : '',
+    'Pre-P1 projects': a.preN,
+    'Post-P1 projects': a.postN,
+    'Post-P1 value': a.postV,
+    Currency: a.cur,
+    'Last meeting': a.lmDate ? fmtXl(a.lmDate) : 'never',
+    'Last project': a.lpDate ? fmtXl(a.lpDate) : 'never',
+    'Last contact': a.lcDate ? fmtXl(a.lcDate) : 'never',
+    'Last validated on': a.validDate ? fmtXl(a.validDate) : '',
+    'Projects in list': a.projects.length,
+    'Project names': a.projects.map(projName).filter(Boolean).join(', '),
+    'Project phases': a.projPhases.join(', '),
+    'Social media': socialSummary(a),
+    'Social links': a.social
+      .map(function (e) {
+        return cellBy(e.s, e.j, 'pslab_link') || '';
+      })
+      .filter(Boolean)
+      .join(' ')
+  };
+}
+
+function exportList(fmt) {
+  doExport(fmt, S._shown || shownList(), S.listMeta);
+}
+
+/** A value of a table column for the export (numbers stay numbers so Excel can add them up). */
+function expCell(c, a, n) {
+  if (c.k === 'postv') return a.postV || null;
+  if (c.k === 'postn') return a.postN || null;
+  return c.g(a) == null ? '' : c.g(a);
+}
+
+/* ---------- Excel styles ---------- */
+var XS = {
+  title: { font: { bold: true, sz: 14, color: { rgb: '111111' } } },
+  sub: { font: { sz: 10, color: { rgb: '666666' } } },
+  head: {
+    font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 10 },
+    fill: { fgColor: { rgb: '222222' } },
+    alignment: { vertical: 'center', wrapText: true },
+    border: { bottom: { style: 'thin', color: { rgb: '222222' } } }
+  },
+  cell: { font: { sz: 10 }, alignment: { vertical: 'top', wrapText: true }, border: { bottom: { style: 'hair', color: { rgb: 'D9D9D9' } } } },
+  zebra: { fill: { fgColor: { rgb: 'F5F5F5' } } }
+};
+
+/**
+ * One styled sheet: title rows, a dark header row with filter buttons, striped rows, sensible column widths.
+ * rows = array of arrays (first = header). money = column numbers shown as € amounts.
+ */
+function styledSheet(title, sub, rows, money) {
+  var top = [[title], [sub], []];
+  var ws = XLSX.utils.aoa_to_sheet(top.concat(rows));
+  var h0 = top.length; // header row index (0-based)
+  var ncol = rows[0].length;
+  ws['A1'].s = XS.title;
+  ws['A2'].s = XS.sub;
+  for (var r = h0; r < h0 + rows.length; r++) {
+    for (var c = 0; c < ncol; c++) {
+      var ref = XLSX.utils.encode_cell({ r: r, c: c });
+      if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+      var st = r === h0 ? XS.head : Object.assign({}, XS.cell, (r - h0) % 2 === 0 ? XS.zebra : {});
+      if (r > h0 && money && money.indexOf(c) >= 0 && typeof ws[ref].v === 'number') ws[ref].z = '€ #,##0';
+      if (r > h0 && c === 1 && rows[0][0] === '#') st = Object.assign({}, st, { font: { sz: 10, bold: true } });
+      ws[ref].s = st;
+    }
+  }
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ r: h0, c: 0 }, { r: h0 + rows.length - 1, c: ncol - 1 }) };
+  ws['!cols'] = rows[0].map(function (h, c) {
+    var w = String(h).length;
+    rows.slice(1, 200).forEach(function (row) {
+      w = Math.max(w, String(row[c] == null ? '' : row[c]).length);
+    });
+    return { wch: Math.min(Math.max(w + 2, 6), 45) };
+  });
+  ws['!rows'] = [{ hpt: 22 }, {}, {}, { hpt: 28 }];
+  return ws;
+}
+
+function doExport(fmt, list, title) {
+  if (!list.length) {
+    toast('Nothing to export');
+    return;
+  }
+  var ctx = scopeText() + (filterText() ? ' · ' + filterText() : '');
+  var stamp = new Date().toISOString().slice(0, 10);
+  var fname = ('People Pipeline - ' + title.split(' › ')[0] + ' - ' + stamp).replace(/[\\/:*?"<>|]/g, '');
+  var info = list.length + ' accounts · data refreshed ' + fmtTs(S.checked) + ' · exported ' + fmtTs(Date.now());
+  var cols = visibleCols(); // the same columns, order and names as the table on screen
+  toast('Preparing ' + (fmt === 'pdf' ? 'PDF' : 'Excel') + '…');
+  var p =
+    fmt === 'pdf'
+      ? loadScript(JSPDF_URL).then(function () {
+          return loadScript(AUTOTABLE_URL);
+        })
+      : loadScript(XLSX_URL);
+  p.then(function () {
+    if (fmt === 'xlsx') {
+      var wb = XLSX.utils.book_new();
+      // 1. the table as it is on screen
+      var head = ['#'].concat(
+        cols.map(function (c) {
+          return c.t;
+        })
+      );
+      var rows = [head].concat(
+        list.map(function (a, n) {
+          return [n + 1].concat(
+            cols.map(function (c) {
+              return expCell(c, a);
+            })
+          );
+        })
+      );
+      var money = [];
+      cols.forEach(function (c, i) {
+        if (c.k === 'postv') money.push(i + 1);
+      });
+      XLSX.utils.book_append_sheet(wb, styledSheet('People Pipeline — ' + title, ctx + '  ·  ' + info, rows, money), 'Accounts');
+      // 2. every field of these accounts
+      var recs = list.map(expRecord);
+      var keys = Object.keys(recs[0]);
+      var all = [keys].concat(
+        recs.map(function (r) {
+          return keys.map(function (k) {
+            return r[k] == null ? '' : r[k];
+          });
+        })
+      );
+      XLSX.utils.book_append_sheet(wb, styledSheet('All details', ctx, all, [keys.indexOf('Post-P1 value')]), 'All details');
+      // 3. projects and 4. contact persons of these accounts (all their columns)
+      [
+        ['projects', 'Projects'],
+        ['contacts', 'Contact persons']
+      ].forEach(function (x) {
+        var hdr = null,
+          out = [];
+        list.forEach(function (a) {
+          a[x[0]].forEach(function (e) {
+            var s = S.sheets[e.s],
+              idx = s.cols
+                .map(function (c, ci) {
+                  return ci;
+                })
+                .filter(function (ci) {
+                  return !/id$/.test(s.hk[ci]) && !/^(accountname)$/.test(s.hk[ci]);
+                });
+            if (!hdr)
+              hdr = ['Account'].concat(
+                idx.map(function (ci) {
+                  return ci === nameCol(s) && x[0] === 'projects' ? 'Project name' : pretty(s.cols[ci].h);
+                })
+              );
+            out.push(
+              [a.name].concat(
+                idx.map(function (ci) {
+                  return fmtVal(s.cols[ci].h, cv(e.s, ci, e.j), a, true).replace(/^—$/, '');
+                })
+              )
+            );
+          });
+        });
+        if (hdr) XLSX.utils.book_append_sheet(wb, styledSheet(x[1], out.length + ' rows', [hdr].concat(out)), x[1]);
+      });
+      XLSX.writeFile(wb, fname + '.xlsx');
+    } else {
+      var L = function (s) {
+        return String(s == null ? '' : s)
+          .replace(/[–—]/g, '-')
+          .replace(/›/g, '>')
+          .replace(/[≥]/g, '>=')
+          .replace(/[≤]/g, '<=')
+          .replace(/€/g, 'EUR')
+          .replace(/[^\x00-\xFF]/g, '');
+      };
+      var doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+      var W = doc.internal.pageSize.getWidth();
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(15);
+      doc.setTextColor(17, 17, 17);
+      doc.text('People Pipeline', 32, 38);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(90, 90, 90);
+      doc.text(L(title), 32, 54);
+      doc.setFontSize(8);
+      var lines = doc.splitTextToSize(L(ctx + '   |   ' + info), W - 64);
+      doc.text(lines, 32, 68);
+      doc.setDrawColor(17, 17, 17);
+      doc.setLineWidth(1.2);
+      doc.line(32, 74 + lines.length * 9, W - 32, 74 + lines.length * 9);
+      doc.autoTable({
+        head: [
+          ['#'].concat(
+            cols.map(function (c) {
+              return L(c.t);
+            })
+          )
+        ],
+        body: list.map(function (a, n) {
+          return [n + 1].concat(
+            cols.map(function (c) {
+              return L(c.g(a));
+            })
+          );
+        }),
+        startY: 84 + lines.length * 9,
+        theme: 'striped',
+        margin: { left: 32, right: 32, bottom: 34 },
+        styles: { fontSize: 7, cellPadding: 3, textColor: [20, 20, 20], overflow: 'linebreak' },
+        headStyles: { fillColor: [34, 34, 34], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        columnStyles: { 0: { cellWidth: 20, textColor: [140, 140, 140] }, 1: { fontStyle: 'bold' } },
+        didDrawPage: function () {
+          doc.setFontSize(7);
+          doc.setTextColor(140, 140, 140);
+          doc.text(
+            'People Pipeline  ·  ' + L(title) + '  ·  page ' + doc.internal.getCurrentPageInfo().pageNumber,
+            32,
+            doc.internal.pageSize.getHeight() - 16
+          );
+        }
+      });
+      doc.save(fname + '.pdf');
+    }
+  }).catch(function (e) {
+    toast('Export failed: ' + (e.message || e));
+  });
+}
+</script>

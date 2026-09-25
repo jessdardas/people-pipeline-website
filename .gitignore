@@ -1,0 +1,3 @@
+# the real data and saved settings stay on the server, never in git
+data/*.xlsx
+App_Data/*.json

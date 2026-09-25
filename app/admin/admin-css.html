@@ -1,0 +1,105 @@
+<style>
+/* ==========================================================================
+   ADMIN: the hidden dot (bottom right) and the admin panel
+   Markup: admin/admin.html · code: admin/admin-js.html
+   ========================================================================== */
+.admin-dot {
+  position: fixed;
+  right: 6px;
+  bottom: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text);
+  opacity: 0.08; /* almost invisible - hover it to see it */
+  z-index: 70;
+}
+.admin-dot:hover {
+  opacity: 0.5;
+}
+.admin-dim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: none;
+  z-index: 90;
+}
+.admin {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(760px, 94vw);
+  max-height: 88vh;
+  overflow: auto;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 22px 26px 26px;
+  display: none;
+  z-index: 91;
+}
+.admin.open,
+.admin-dim.open {
+  display: block;
+}
+.admin h2 {
+  margin: 0 0 14px;
+  font-size: 18px;
+  font-weight: 800;
+}
+.admin h3 {
+  font-size: 13px;
+  margin: 22px 0 8px;
+}
+.admin .row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.admin input[type='password'],
+.admin input[type='date'] {
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  padding: 7px 10px;
+  font-size: 13px;
+  outline: none;
+}
+.admin input:focus {
+  border-color: var(--text);
+}
+.admin .err {
+  color: #b3261e;
+  font-size: 12px;
+}
+.admin .x {
+  top: 16px;
+  right: 16px;
+}
+/* Data check table */
+.chk {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+.chk th,
+.chk td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.chk th {
+  background: var(--soft);
+  font-weight: 700;
+}
+.chk td.warn {
+  color: #b3261e;
+  font-weight: 700;
+}
+.chk .cols {
+  color: var(--text-soft);
+  font-size: 11px;
+}
+</style>

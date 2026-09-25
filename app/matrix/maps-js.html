@@ -1,0 +1,155 @@
+<script>
+/* The four matrix views (rows, columns, and where each account lands) */
+function catKey(c) {
+  c = String(c || '')
+    .toLowerCase()
+    .replace(/[–—]/g, '-')
+    .replace(/\s+/g, ' ');
+  if (c === 'design practice') return 'design practice';
+  if (/end user - individual/.test(c)) return 'end user - individual';
+  if (/end user - developer/.test(c)) return 'end user - developer';
+  if (/end user - brand/.test(c)) return 'end user - brand';
+  if (c === 'cce') return 'cce';
+  return 'other';
+}
+
+function mo(d) {
+  return d == null ? null : d / M;
+}
+
+function band(v, edges, nullKey) {
+  if (v == null) return nullKey;
+  for (var i = 0; i < edges.length; i++) if (v < edges[i]) return i;
+  return edges.length;
+}
+
+var MAPS = {
+  1: {
+    title: 'Current pipeline',
+    filter: function (a) {
+      return a.cls === 'current pipeline';
+    },
+    x: 'Project phase (newest project)', // changed by setProjMode()
+    y: 'Last meeting',
+    cols: PHASES.map(function (p) {
+      return { k: p, t: p };
+    }).concat([{ k: 'none', t: 'No phase', opt: 1 }]),
+    rows: [
+      { k: 0, t: '< 6 months', s: 'actively engaged' },
+      { k: 1, t: '6–12 months', s: 'needs a touchpoint' },
+      { k: 2, t: '1–2 years', s: 'at risk' },
+      { k: 3, t: '> 2 years', s: 'inactive, still revivable' },
+      { k: 'n', t: 'No meeting', s: 'never met', opt: 1 }
+    ],
+    place: function (a) {
+      var ph = S.projMode === 'advanced' ? a.maxPhase || a.phase : a.newestPhase || a.phase;
+      return [band(mo(a.lastMeeting), [6, 12, 24], 'n'), PHASES.indexOf(ph) >= 0 ? ph : 'none'];
+    },
+    // "All projects": one place per project (an account without projects is placed once, by its phase)
+    places: function (a) {
+      if (S.projMode !== 'all' || !a.projInfo.length) return [this.place(a)];
+      var row = band(mo(a.lastMeeting), [6, 12, 24], 'n');
+      return a.projInfo.map(function (p) {
+        return [row, PHASES.indexOf(p.ph) >= 0 ? p.ph : 'none'];
+      });
+    }
+  },
+  2: {
+    title: 'Past clients',
+    filter: function (a) {
+      return a.cls === 'past client';
+    },
+    x: 'Last project',
+    y: 'Last meeting',
+    cols: [
+      { k: 0, t: '0–6 months' },
+      { k: 1, t: '6–12 months' },
+      { k: 2, t: '12–18 months' },
+      { k: 3, t: '18+ months' },
+      { k: 'n', t: 'No project', opt: 1 }
+    ],
+    rows: [
+      { k: 0, t: '0–3 months' },
+      { k: 1, t: '3–6 months' },
+      { k: 2, t: '6–9 months' },
+      { k: 3, t: '9–12 months' },
+      { k: 4, t: '12–15 months' },
+      { k: 5, t: '15–18 months' },
+      { k: 6, t: '18+ months' },
+      { k: 'n', t: 'No meeting', s: 'never met', opt: 1 }
+    ],
+    place: function (a) {
+      return [
+        band(mo(a.lastMeeting), [3, 6, 9, 12, 15, 18], 'n'),
+        /^[1-4]$/.test(a.pb) ? +a.pb - 1 : band(mo(a.lastProject), [6, 12, 18], 'n')
+      ];
+    }
+  },
+  3: {
+    title: 'No business',
+    filter: function (a) {
+      return NB.indexOf(a.cls) >= 0;
+    },
+    x: 'Classification',
+    y: 'Account category',
+    cols: [
+      { k: 'past demand', t: 'Past Demand' },
+      { k: 'met in', t: 'Met In' },
+      { k: 'met out', t: 'Met Out' },
+      { k: 'contacted', t: 'Contacted' },
+      { k: 'not contacted', t: 'Not Contacted' }
+    ],
+    rows: [
+      { k: 'design practice', t: 'Design Practice' },
+      { k: 'end user - individual', t: 'End User – Individual' },
+      { k: 'end user - developer', t: 'End User – Developer' },
+      { k: 'end user - brand', t: 'End User – Brand' },
+      { k: 'cce', t: 'CCE' },
+      { k: 'other', t: 'Other', s: 'incl. lighting designer / dealer' }
+    ],
+    place: function (a) {
+      return [catKey(a.category), a.cls];
+    }
+  },
+  4: {
+    title: 'All accounts',
+    filter: function () {
+      return true;
+    },
+    x: 'Classification',
+    y: 'Account category',
+    cols: [],
+    rows: [
+      { k: 'design practice', t: 'Design Practice' },
+      { k: 'end user - individual', t: 'End User – Individual' },
+      { k: 'end user - developer', t: 'End User – Developer' },
+      { k: 'end user - brand', t: 'End User – Brand' },
+      { k: 'cce', t: 'CCE' },
+      { k: 'other', t: 'Other', s: 'incl. lighting designer / dealer' }
+    ],
+    place: function (a) {
+      return [catKey(a.category), a.cls];
+    }
+  }
+};
+
+/** Where an account goes on a map: a list of [row, column] (more than one on map 01 with "All projects"). */
+function placesOf(def, a) {
+  return def.places ? def.places(a) : [def.place(a)];
+}
+
+/** Map 01 toggle: newest project / most advanced phase / all projects. */
+function setProjMode(m) {
+  S.projMode = m;
+  MAPS[1].x = 'Project phase (' + { newest: 'newest project', advanced: 'most advanced', all: 'every project' }[m] + ')';
+  S.sel = [];
+  S.hl = null;
+  S.g = newGrid();
+  render();
+}
+
+function viewOf(a) {
+  for (var v = 1; v <= 3; v++) if (MAPS[v].filter(a)) return v;
+  return 4;
+}
+</script>

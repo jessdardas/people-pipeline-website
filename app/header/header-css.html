@@ -1,0 +1,332 @@
+<style>
+/* ==========================================================================
+   HEADER: logo, "Last refreshed", service unit buttons, pipeline menu, map tabs
+   Markup: header/header.html · filled by header/header-js.html
+   ========================================================================== */
+
+/* the white block at the top (logo row + units row + tabs row) */
+.top,
+.bar,
+.nav {
+  background: var(--surface);
+  padding-left: 32px;
+  padding-right: 32px;
+}
+
+/* ---------- row 1: logo, refresh, search ---------- */
+.top {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding-top: 16px;
+  padding-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.logo {
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+/* "Last refreshed 24 Sep 2026, 10:12 ↻" */
+.rf {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.rf b {
+  color: var(--text-soft);
+  font-weight: 600;
+}
+.rf button {
+  margin-left: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: var(--text-soft);
+  font-size: 13px;
+  transition:
+    background 0.15s,
+    transform 0.3s;
+}
+.rf button:hover {
+  background: var(--soft);
+  color: var(--accent);
+  transform: rotate(90deg);
+}
+
+/* ---------- row 2: service units (left) + pipelines (right) ---------- */
+.bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 28px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.units {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px 4px;
+  flex-wrap: wrap;
+}
+
+/* one service unit chip (All, Beirut, London …) */
+.units button {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-soft);
+  padding: 4px 11px;
+  border-radius: 999px;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.units button:hover {
+  background: var(--soft);
+  color: var(--text);
+}
+.units button.on {
+  background: var(--accent);
+  color: #fff;
+}
+.units button.nodata {
+  opacity: 0.45; /* unit without accounts in the file */
+}
+
+/* a group of units (Benelux) with its name above */
+.ugrp {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 4px;
+}
+.ugrp .grp {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 0 10px 3px;
+  color: var(--text-faint);
+}
+.ugrp .grp.on {
+  background: none;
+  color: var(--accent);
+}
+.ugrp .row {
+  display: flex;
+  gap: 4px;
+  border-top: 1.5px solid var(--line);
+  padding-top: 4px;
+}
+
+/* "multiple" tick box */
+.multi {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-left: 8px;
+  padding-bottom: 5px;
+  cursor: pointer;
+}
+.multi input {
+  margin: 0;
+  width: 13px;
+  height: 13px;
+}
+
+/* pipeline dropdown */
+.pipes {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.pbtn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 14px;
+  transition: border-color 0.15s;
+}
+.pbtn:hover {
+  border-color: var(--accent);
+}
+.pbtn i {
+  font-style: normal;
+  font-size: 9px;
+  color: var(--text-faint);
+  margin-left: 4px;
+}
+.pmenu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 50;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 310px;
+  padding: 6px;
+}
+.pmenu label {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.pmenu label:hover {
+  background: var(--soft);
+}
+.pmenu input {
+  margin: 3px 0 0;
+}
+.pmenu b {
+  display: block;
+  font-weight: 600;
+  font-size: 12.5px;
+}
+.pmenu small {
+  display: block;
+  color: var(--text-faint);
+  font-size: 11.5px;
+}
+.pm-f {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px 4px;
+  border-top: 1px solid var(--soft);
+  margin-top: 4px;
+}
+
+/* ---------- row 3: map tabs + Filters ---------- */
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 16px 24px;
+  padding-top: 4px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+/* the tabs look like one pill with the active one lifted out */
+.tabs {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+  background: var(--soft);
+  padding: 4px;
+  border-radius: 22px;
+}
+.tabs button {
+  padding: 7px 16px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-soft);
+  border-radius: 999px;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.tabs button:hover {
+  color: var(--text);
+}
+.tabs button b {
+  font-weight: 700;
+  font-size: 10px;
+  margin-right: 7px;
+  color: var(--text-faint);
+}
+.tabs button.on {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(30, 27, 46, 0.12);
+}
+.tabs button.on b {
+  color: var(--accent);
+}
+/* "All accounts" sits a bit apart */
+.tabs button.far {
+  margin-left: 8px;
+  position: relative;
+}
+.tabs button.far::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 25%;
+  height: 50%;
+  border-left: 1.5px solid var(--line);
+}
+
+@media (max-width: 760px) {
+  .top,
+  .bar,
+  .nav {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .rf {
+    margin-left: 0;
+  }
+}
+
+/* People pipeline / New DB toggle next to the title (the .seg look is in matrix/matrix-css.html) */
+.db {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.db small {
+  color: var(--text-faint);
+  font-size: 11.5px;
+}
+
+/* owners of the chosen service unit(s) */
+.owners {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  background: var(--surface);
+  padding: 0 32px 12px;
+}
+.owners .olbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-right: 6px;
+}
+.owners button {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-soft);
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+}
+.owners button:hover {
+  color: var(--text);
+  border-color: var(--text-faint);
+}
+.owners button.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+</style>

@@ -1,0 +1,248 @@
+<script>
+/* Turns the server data into one object per account */
+function cv(si, c, j) {
+  var col = S.sheets[si].cols[c],
+    v = col.v[j];
+  if (col.d) return v == null || v < 0 ? null : col.d[v];
+  return v;
+}
+
+var FIELD = {};
+
+function F(a, key) {
+  var f = FIELD[hKey(key)];
+  if (!f) return null;
+  var j = f.s === 0 ? a.i : a.mr[f.s];
+  return j == null ? null : cv(f.s, f.c, j);
+}
+
+function valBucket(v) {
+  if (!v) return 'No value';
+  for (var i = 0; i < VAL_EDGES.length; i++) if (v < VAL_EDGES[i]) return VAL_LABELS[i];
+  return VAL_LABELS[VAL_LABELS.length - 1];
+}
+
+function cntBucket(n) {
+  n = n || 0;
+  return n === 0
+    ? '0'
+    : n === 1
+      ? '1'
+      : n <= 3
+        ? '2–3'
+        : n <= 5
+          ? '4–5'
+          : n <= 10
+            ? '6–10'
+            : n <= 20
+              ? '11–20'
+              : '21+';
+}
+
+function prjBucket(n) {
+  return n === 0 ? 'None' : n === 1 ? '1' : n <= 5 ? '2–5' : n <= 10 ? '6–10' : '11+';
+}
+
+function daysFrom(dateKey, daysKey, a) {
+  var d = num(F(a, dateKey));
+  if (d == null || d <= NEVER) return { date: null, days: null };
+  var n = daysKey ? num(F(a, daysKey)) : null;
+  return {
+    date: d,
+    days: n != null ? Math.max(0, Math.round(n)) : Math.max(0, Math.round(todaySerial() - d))
+  };
+}
+
+function build(d) {
+  S.source = d.source || {};
+  if (d.settings) S.settings = d.settings;
+  S.checked = Date.now();
+  S.sheets = d.sheets;
+  S.sheets.forEach(function (s, si) {
+    s.si = si;
+    s.hk = s.cols.map(function (c) {
+      return hKey(c.h);
+    });
+  });
+  FIELD = {};
+  S.sheets.forEach(function (s) {
+    if (s.role !== 'accounts' && s.role !== 'merge') return;
+    s.hk.forEach(function (h, c) {
+      if (!FIELD[h]) FIELD[h] = { s: s.si, c: c };
+    });
+  });
+  var n = S.sheets[0].n,
+    acc = new Array(n);
+  for (var i = 0; i < n; i++) acc[i] = { i: i, mr: {}, L: {} };
+  S.sheets.forEach(function (s) {
+    if (s.role === 'accounts') return;
+    for (var j = 0; j < s.n; j++) {
+      var a = acc[s.link[j]];
+      if (!a) continue;
+      if (s.role === 'merge') a.mr[s.si] = j;
+      else (a.L[s.si] = a.L[s.si] || []).push(j);
+    }
+  });
+  S.byId = {};
+  // "last validated": the validation end date column (validation_task_enddate), else any date column about validation
+  var vk = Object.keys(FIELD);
+  S.validKey =
+    vk.filter(function (k) {
+      return /validat/.test(k) && /enddate/.test(k);
+    })[0] ||
+    vk.filter(function (k) {
+      return /validat/.test(k) && /date|on$/.test(k);
+    })[0] ||
+    null;
+  acc.forEach(function (a) {
+    a.id = String(F(a, 'accountid') || '');
+    a.name = String(F(a, 'name') == null ? '(no name)' : F(a, 'name'));
+    a.lname = a.name.toLowerCase();
+    a.cls = lc(F(a, 'classification')) || 'no classification';
+    a.clsOrder = num(F(a, 'classification_order'));
+    a.category = lc(F(a, 'category'));
+    a.orig = lc(F(a, 'original_category'));
+    a.industry = F(a, 'industry') == null ? '' : String(F(a, 'industry')).trim();
+    a.country = lc(F(a, 'country'));
+    a.su = suKey(F(a, 'serviceunit'));
+    a.owner = F(a, 'owneridname') == null ? '' : String(F(a, 'owneridname'));
+    a.metIn = lc(F(a, 'met in')) === 'yes' ? 'yes' : 'no';
+    var lm = daysFrom('LastMeeting_Date', 'LastMeeting_days', a),
+      lp = daysFrom('LastProject_DateIn', 'LastProject_days', a),
+      lcn = daysFrom('LastContact1_Date', null, a);
+    a.lmDate = lm.date;
+    a.lastMeeting = lm.days;
+    a.lpDate = lp.date;
+    a.lastProject = lp.days;
+    a.lcDate = lcn.date;
+    a.lastContact = lcn.days;
+    a.phase = phaseKey(F(a, 'Phase_Group'));
+    a.pipe = pipeKey(F(a, 'pipeline'));
+    a.preN = num(F(a, 'PreP1_Count')) || 0;
+    a.postN = num(F(a, 'PostP1_Count')) || 0;
+    a.postV = num(F(a, 'PostP1_Amount')) || 0;
+    a.cur = F(a, 'CurrencySymbol') || '€';
+    a.pb = String(F(a, 'classification2') == null ? '' : F(a, 'classification2'));
+    var vd = S.validKey ? F(a, S.validKey) : null;
+    if (typeof vd === 'string' && /^\d+(\.\d+)?$/.test(vd.trim())) vd = Number(vd); // an Excel date number stored as text
+    if (typeof vd === 'string') {
+      var pd = Date.parse(vd);
+      vd = isNaN(pd) ? null : pd / 864e5 + 25569;
+    }
+    a.validDate = vd != null && vd > NEVER ? vd : null;
+    a.validDays = a.validDate == null ? null : Math.max(0, Math.round(todaySerial() - a.validDate));
+    a.social = [];
+    a.projects = [];
+    a.contacts = [];
+    a.lists = [];
+    Object.keys(a.L).forEach(function (si) {
+      var s = S.sheets[si];
+      a.L[si].forEach(function (j) {
+        if (s.role === 'social') {
+          if (rowHasContent(s, j)) a.social.push({ s: +si, j: j });
+        } else if (s.role === 'projects') a.projects.push({ s: +si, j: j });
+        else if (s.role === 'contacts') a.contacts.push({ s: +si, j: j });
+        else a.lists.push({ s: +si, j: j });
+      });
+    });
+    // phase + date of each project, for the map 01 toggle (newest / most advanced / all)
+    a.projInfo = a.projects.map(function (p) {
+      return { ph: phaseKey(cellBy(p.s, p.j, 'Phase_Group')), d: projDate(p) };
+    });
+    var newest = null,
+      best = -1;
+    a.projInfo.forEach(function (p) {
+      if (p.d != null && (!newest || p.d > newest.d)) newest = p;
+      best = Math.max(best, PHASES.indexOf(p.ph));
+    });
+    a.newestPhase = newest ? newest.ph : '';
+    a.maxPhase = best >= 0 ? PHASES[best] : '';
+    a.projPhases = uniq(
+      a.projects
+        .map(function (p) {
+          return phaseKey(cellBy(p.s, p.j, 'Phase_Group'));
+        })
+        .filter(Boolean)
+    ).sort();
+    a.fv = {
+      cls: a.cls,
+      cat: a.category || '(none)',
+      orig: a.orig || '(none)',
+      ind: a.industry || '(none)',
+      country: a.country || '(none)',
+      owner: a.owner || '(none)',
+      metin: a.metIn,
+      phase: a.phase || 'No phase',
+      val: valBucket(a.postV),
+      postn: cntBucket(a.postN),
+      pren: cntBucket(a.preN),
+      proj: prjBucket(a.projects.length),
+      valid: a.validDays == null ? 'Not validated' : lmBucket(a.validDays)
+    };
+    if (a.id) S.byId[a.id] = a;
+  });
+  S.acc = acc;
+  var co = {};
+  acc.forEach(function (a) {
+    if (co[a.cls] == null) co[a.cls] = a.clsOrder == null ? 99 : a.clsOrder;
+  });
+  MAPS[4].cols = Object.keys(co)
+    .sort(function (x, y) {
+      return co[x] - co[y];
+    })
+    .map(function (c) {
+      // "No classification" only shows when the selection has accounts without a classification
+      return { k: c, t: cap(c), opt: c === 'no classification' ? 1 : 0 };
+    });
+  // units present in data
+  var have = {};
+  acc.forEach(function (a) {
+    if (a.su) have[a.su] = (have[a.su] || 0) + 1;
+  });
+  S.have = have;
+  S.allUnits = UNIT_ORDER.concat(
+    Object.keys(have)
+      .filter(function (u) {
+        return UNIT_ORDER.indexOf(u) < 0;
+      })
+      .sort()
+  );
+  buildSocialFilters();
+}
+
+/** The date of a project used for "Newest project" (first column of PROJECT_DATE_COLS in its sheet). */
+function projDate(p) {
+  var s = S.sheets[p.s];
+  if (s._dc === undefined) {
+    s._dc = -1;
+    for (var i = 0; i < PROJECT_DATE_COLS.length && s._dc < 0; i++) s._dc = s.hk.indexOf(PROJECT_DATE_COLS[i]);
+  }
+  return s._dc < 0 ? null : num(cv(p.s, s._dc, p.j));
+}
+
+function uniq(a) {
+  var o = {},
+    r = [];
+  a.forEach(function (x) {
+    if (!o[x]) {
+      o[x] = 1;
+      r.push(x);
+    }
+  });
+  return r;
+}
+
+function cellBy(si, j, key) {
+  var s = S.sheets[si],
+    c = s.hk.indexOf(hKey(key));
+  return c < 0 ? null : cv(si, c, j);
+}
+
+function rowHasContent(s, j) {
+  for (var c = 0; c < s.cols.length; c++) {
+    if (s.hk[c] === 'accountid') continue;
+    if (cv(s.si, c, j) != null) return true;
+  }
+  return false;
+}
+</script>

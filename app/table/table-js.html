@@ -1,0 +1,596 @@
+<script>
+/* Account table under the matrix: sort, filter per column, show more */
+/* ---------- account table (under the matrix): sortable + filterable headers ---------- */
+var TCOLS = [
+  {
+    k: 'name',
+    t: 'Account',
+    g: function (a) {
+      return a.name;
+    }
+  },
+  {
+    k: 'su',
+    t: 'Service unit',
+    g: function (a) {
+      return unitLabel(a.su);
+    }
+  },
+  {
+    k: 'cls',
+    t: 'Classification',
+    g: function (a) {
+      return cap(a.cls);
+    },
+    s: function (a) {
+      return a.clsOrder == null ? 99 : a.clsOrder;
+    }
+  },
+  {
+    k: 'cat',
+    t: 'Category',
+    g: function (a) {
+      return cap(a.category);
+    }
+  },
+  {
+    k: 'ind',
+    t: 'Industry',
+    g: function (a) {
+      return cap(a.industry);
+    }
+  },
+  {
+    k: 'country',
+    t: 'Country',
+    g: function (a) {
+      return cap(a.country);
+    }
+  },
+  {
+    k: 'owner',
+    t: 'Owner',
+    g: function (a) {
+      return cap(a.owner);
+    }
+  },
+  {
+    k: 'phase',
+    t: 'Phase',
+    g: function (a) {
+      return a.phase;
+    }
+  },
+  {
+    k: 'postn',
+    t: 'Post-P1 #',
+    g: function (a) {
+      return a.postN ? String(a.postN) : '';
+    },
+    s: function (a) {
+      return a.postN;
+    },
+    num: 1
+  },
+  {
+    k: 'postv',
+    t: 'Post-P1 value',
+    g: function (a) {
+      return a.postV ? fmtMoney(a.postV, a.cur) : '';
+    },
+    s: function (a) {
+      return a.postV;
+    },
+    num: 1,
+    fv: function (a) {
+      return a.fv.val;
+    }
+  },
+  {
+    k: 'lm',
+    t: 'Last meeting',
+    g: function (a) {
+      return a.lmDate ? dateAgo(a.lmDate, false, a.lastMeeting) : '';
+    },
+    s: function (a) {
+      return a.lastMeeting == null ? 1e9 : a.lastMeeting;
+    },
+    fv: function (a) {
+      return lmBucket(a.lastMeeting);
+    }
+  },
+  {
+    k: 'valid',
+    t: 'Last validated',
+    g: function (a) {
+      return a.validDate ? dateAgo(a.validDate, false, a.validDays) : '';
+    },
+    s: function (a) {
+      return a.validDays == null ? 1e9 : a.validDays;
+    },
+    fv: function (a) {
+      return a.fv.valid;
+    }
+  },
+  {
+    k: 'soc',
+    t: 'Social media',
+    g: function (a) {
+      return socialPlatforms(a);
+    },
+    s: function (a) {
+      return a.social.length ? 0 : 1;
+    }
+  }
+];
+
+function lmBucket(d) {
+  return d == null
+    ? 'Never'
+    : d < 91
+      ? '< 3 months'
+      : d < 183
+        ? '3–6 months'
+        : d < 365
+          ? '6–12 months'
+          : d < 730
+            ? '1–2 years'
+            : '2+ years';
+}
+
+/** "Instagram + LinkedIn": the platforms of an account (all details are in the account panel) */
+function socialPlatforms(a) {
+  return uniq(
+    a.social
+      .map(function (e) {
+        return cellBy(e.s, e.j, 'pslab_platformname') || cellBy(e.s, e.j, 'platform');
+      })
+      .filter(Boolean)
+      .map(String)
+  ).join(' + ');
+}
+
+function socialSummary(a) {
+  return a.social
+    .map(function (e) {
+      var p = cellBy(e.s, e.j, 'pslab_platformname') || cellBy(e.s, e.j, 'platform'),
+        f = cellBy(e.s, e.j, 'pslab_followersname');
+      return [p, f].filter(Boolean).join(' ');
+    })
+    .join(', ');
+}
+
+function colDef(k) {
+  return TCOLS.filter(function (c) {
+    return c.k === k;
+  })[0];
+}
+
+function colVal(c, a) {
+  var v = c.fv ? c.fv(a) : c.g(a);
+  return v === '' || v == null ? '(blank)' : String(v);
+}
+
+/**
+ * Click on a matrix box. Normally it shows only that box (click again to close);
+ * with "select several boxes" ticked, every click adds / removes a box.
+ */
+function openCell(rk, ck) {
+  var key = rk + '§' + ck,
+    i = S.sel.indexOf(key);
+  if (S.multiCell) {
+    if (i >= 0) S.sel.splice(i, 1);
+    else S.sel.push(key);
+  } else S.sel = i >= 0 && S.sel.length === 1 ? [] : [key];
+  S.g = newGrid();
+  render();
+  scrollToList();
+}
+
+/** Click on a row title (kind 'r') or column title (kind 'c'): selects every box of that row / column. */
+function selectLine(kind, k) {
+  var keys = Object.keys(S._cells || {}).filter(function (key) {
+    var p = key.split('§');
+    return (kind === 'r' ? p[0] : p[1]) === String(k);
+  });
+  if (!keys.length) return;
+  var allOn = keys.every(function (key) {
+    return S.sel.indexOf(key) >= 0;
+  });
+  if (S.multiCell) {
+    if (allOn)
+      S.sel = S.sel.filter(function (key) {
+        return keys.indexOf(key) < 0;
+      });
+    else
+      keys.forEach(function (key) {
+        if (S.sel.indexOf(key) < 0) S.sel.push(key);
+      });
+  } else S.sel = allOn && S.sel.length === keys.length ? [] : keys;
+  S.g = newGrid();
+  render();
+  scrollToList();
+}
+
+function scrollToList() {
+  var el = document.getElementById('inl');
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function newGrid() {
+  return { sort: { k: 'lm', d: 1 }, cf: {}, q: '', limit: 100 };
+}
+
+function closeCell() {
+  S.sel = [];
+  S.g = newGrid();
+  render();
+}
+
+function listBlock(meta, closable) {
+  return (
+    '<div class="inl" id="inl"><div class="inh"><div><h2 id="gCount"></h2><div class="meta">' +
+    esc(meta) +
+    '</div></div>' +
+    '<div class="dtools"><input id="dSearch" placeholder="Search in this table…" value="' +
+    esc(S.g.q) +
+    '" oninput="S.g.q=this.value;S.g.limit=100;renderList()"><button class="btn ghost" onclick="toggleColPanel()" title="Show, hide, order and rename the columns">Columns</button><button class="btn" onclick="exportList(\'xlsx\')">Excel</button><button class="btn" onclick="exportList(\'pdf\')">PDF</button>' +
+    (closable ? '<button class="x2" onclick="closeCell()" title="Close">×</button>' : '') +
+    '</div></div><div class="tw" id="tw"></div><div class="hpop" id="hpop"></div><div class="hpop cpop" id="cpop"></div></div>'
+  );
+}
+
+function gridRows(skipK) {
+  var q = (S.g.q || '').toLowerCase().trim();
+  var list = S.list.filter(function (a) {
+    if (q && a.lname.indexOf(q) < 0 && a.owner.toLowerCase().indexOf(q) < 0 && a.country.indexOf(q) < 0)
+      return false;
+    for (var k in S.g.cf) {
+      if (k === skipK) continue;
+      var sel = S.g.cf[k];
+      if (sel && sel.length && sel.indexOf(colVal(colDef(k), a)) < 0) return false;
+    }
+    return true;
+  });
+  return list;
+}
+
+function shownList() {
+  var list = gridRows(),
+    col = colDef(S.g.sort.k) || TCOLS[0],
+    d = S.g.sort.d,
+    key = col.s || col.g;
+  return list.sort(function (a, b) {
+    var x = key(a),
+      y = key(b);
+    if (typeof x === 'string' || typeof y === 'string')
+      return String(x).localeCompare(String(y)) * d || a.name.localeCompare(b.name);
+    return (x - y) * d || a.name.localeCompare(b.name);
+  });
+}
+
+function renderList() {
+  var box = document.getElementById('tw');
+  if (!box) return;
+  var list = shownList(),
+    cols = visibleCols();
+  S._shown = list;
+  var c = document.getElementById('gCount');
+  if (c) c.textContent = list.length.toLocaleString('en-GB') + ' account' + (list.length === 1 ? '' : 's');
+  var h =
+    '<table class="tb"><thead><tr><th class="cnt" title="Row number">#</th>' +
+    cols
+      .map(function (c) {
+        var f = S.g.cf[c.k] && S.g.cf[c.k].length,
+          so = S.g.sort.k === c.k,
+          w = TCFG.widths[c.k];
+        return (
+          '<th class="' +
+          (so || f ? 's' : '') +
+          '"' +
+          (w ? ' style="width:' + w + 'px"' : '') +
+          ' onclick="openHead(\'' +
+          c.k +
+          '\', this)">' +
+          esc(c.t) +
+          (so ? (S.g.sort.d > 0 ? ' ↑' : ' ↓') : '') +
+          (f ? ' <i class="fdot">●</i>' : '') +
+          '<span class="rsz" title="Drag to change the width" onmousedown="startResize(event,\'' +
+          c.k +
+          '\')" onclick="event.stopPropagation()"></span></th>'
+        );
+      })
+      .join('') +
+    '</tr></thead><tbody>';
+  list.slice(0, S.g.limit).forEach(function (a, n) {
+    h +=
+      '<tr class="' +
+      (S.hl && S.hl.id === a.id ? 'hl' : '') +
+      '" onclick="openDetail(' +
+      a.i +
+      ')"><td class="cnt">' +
+      (n + 1) +
+      '</td>' +
+      cols.map(function (c) {
+        var v = c.g(a);
+        return (
+          '<td class="' +
+          (c.num ? 'num' : '') +
+          '" title="' +
+          esc(v) +
+          '">' +
+          (c.k === 'name' ? '<b>' + esc(v) + '</b>' : esc(v)) +
+          '</td>'
+        );
+      }).join('') +
+      '</tr>';
+  });
+  h += '</tbody></table>';
+  if (!list.length)
+    h += '<p class="hint nomatch">No account matches. Try clearing the search or a column filter.</p>';
+  if (list.length > S.g.limit)
+    h +=
+      '<button class="more" onclick="S.g.limit+=200;renderList()">Show more (' +
+      (list.length - S.g.limit).toLocaleString('en-GB') +
+      ' left)</button>';
+  box.innerHTML = h;
+  var hl = box.querySelector('tr.hl');
+  if (hl) hl.scrollIntoView({ block: 'nearest' });
+}
+
+/* header menu: sort + filter by the values of that column */
+function openHead(k, th) {
+  var pop = document.getElementById('hpop');
+  if (!pop) return;
+  if (S.hk === k && pop.classList.contains('open')) {
+    closeHead();
+    return;
+  }
+  S.hk = k;
+  S.hq = '';
+  S.hsel = (S.g.cf[k] || []).slice();
+  var wrap = document.getElementById('inl').getBoundingClientRect(),
+    r = th.getBoundingClientRect();
+  pop.style.left = Math.max(0, Math.min(r.left - wrap.left, wrap.width - 280)) + 'px';
+  pop.style.top = r.bottom - wrap.top + 2 + 'px';
+  var c = colDef(k);
+  pop.innerHTML =
+    '<div class="hp-s"><button onclick="headSort(1)">Sort ascending ↑</button><button onclick="headSort(-1)">Sort descending ↓</button></div>' +
+    '<div class="fp-t">Filter ' +
+    esc(c.t) +
+    '<span class="ml"></span><button class="lnk" onclick="headAll(1)">all</button><button class="lnk" onclick="headAll(0)">none</button></div>' +
+    '<input class="fp-q" placeholder="Search…" oninput="S.hq=this.value;renderHeadList()"><div class="fp-list" id="hpList"></div>' +
+    '<div class="fp-f"><button class="lnk" onclick="S.hsel=[];headApply()">Clear</button><span class="ml"></span><button class="btn" onclick="headApply()">Apply</button></div>';
+  pop.classList.add('open');
+  renderHeadList();
+}
+
+function renderHeadList() {
+  var c = colDef(S.hk),
+    cnt = {},
+    q = (S.hq || '').toLowerCase();
+  gridRows(S.hk).forEach(function (a) {
+    var v = colVal(c, a);
+    cnt[v] = (cnt[v] || 0) + 1;
+  });
+  S.hsel.forEach(function (v) {
+    if (!(v in cnt)) cnt[v] = 0;
+  });
+  var keys = Object.keys(cnt);
+  if (c.fv) {
+    var ord = FDEF.filter(function (f) {
+      return f.k === { postv: 'val', valid: 'valid' }[c.k];
+    })[0];
+    var o =
+      (ord && ord.order) ||
+      (c.k === 'lm' ? ['< 3 months', '3–6 months', '6–12 months', '1–2 years', '2+ years', 'Never'] : null);
+    if (o)
+      keys.sort(function (x, y) {
+        return (o.indexOf(x) < 0 ? 99 : o.indexOf(x)) - (o.indexOf(y) < 0 ? 99 : o.indexOf(y));
+      });
+    else keys.sort();
+  } else
+    keys.sort(function (x, y) {
+      return (x === '(blank)') - (y === '(blank)') || cnt[y] - cnt[x] || x.localeCompare(y);
+    });
+  S.hopts = keys.filter(function (v) {
+    return !q || v.toLowerCase().indexOf(q) >= 0;
+  });
+  document.getElementById('hpList').innerHTML =
+    S.hopts
+      .slice(0, 400)
+      .map(function (v, i) {
+        return (
+          '<label><input type="checkbox" ' +
+          (S.hsel.indexOf(v) >= 0 ? 'checked' : '') +
+          ' onchange="headToggle(' +
+          i +
+          ')"><span>' +
+          esc(v) +
+          '</span><small>' +
+          cnt[v].toLocaleString('en-GB') +
+          '</small></label>'
+        );
+      })
+      .join('') || '<label class="novals"><span>No values</span></label>';
+}
+
+function headToggle(i) {
+  var v = S.hopts[i],
+    ix = S.hsel.indexOf(v);
+  if (ix >= 0) S.hsel.splice(ix, 1);
+  else S.hsel.push(v);
+}
+
+function headAll(on) {
+  S.hsel = on ? S.hopts.slice() : [];
+  renderHeadList();
+}
+
+function headSort(d) {
+  S.g.sort = { k: S.hk, d: d };
+  closeHead();
+  renderList();
+}
+
+function headApply() {
+  if (S.hsel.length) S.g.cf[S.hk] = S.hsel.slice();
+  else delete S.g.cf[S.hk];
+  S.g.limit = 100;
+  closeHead();
+  renderList();
+}
+
+function closeHead() {
+  var p = document.getElementById('hpop');
+  if (p) p.classList.remove('open');
+  S.hk = null;
+}
+
+// clicking anywhere else closes the column menu
+document.addEventListener('mousedown', function (e) {
+  if (S.hk && !e.target.closest('#hpop') && !e.target.closest('.tb th')) closeHead();
+});
+
+/* ---------- which columns the table shows, their order, names and widths (saved in this browser) ---------- */
+var TCFG_KEY = 'pp_table_columns';
+var TCFG_DEFAULT = { order: [], hidden: { ind: 1 }, labels: {}, widths: {} }; // Industry hidden by default
+var TCFG = loadTcfg();
+
+function loadTcfg() {
+  try {
+    var v = JSON.parse(localStorage.getItem(TCFG_KEY) || 'null');
+    if (v && v.order) return v;
+  } catch (e) {}
+  return JSON.parse(JSON.stringify(TCFG_DEFAULT));
+}
+
+function saveTcfg() {
+  try {
+    localStorage.setItem(TCFG_KEY, JSON.stringify(TCFG));
+  } catch (e) {}
+}
+
+/** All columns in the chosen order (new columns go at the end), with the chosen names. */
+function orderedCols() {
+  var keys = TCFG.order.filter(function (k) {
+    return colDef(k);
+  });
+  TCOLS.forEach(function (c) {
+    if (keys.indexOf(c.k) < 0) keys.push(c.k);
+  });
+  return keys.map(function (k) {
+    var c = colDef(k);
+    return Object.assign({}, c, { t: TCFG.labels[k] || c.t, t0: c.t });
+  });
+}
+
+function visibleCols() {
+  return orderedCols().filter(function (c) {
+    return !TCFG.hidden[c.k];
+  });
+}
+
+function toggleColPanel() {
+  var p = document.getElementById('cpop');
+  if (p.classList.contains('open')) return p.classList.remove('open');
+  renderColPanel();
+  p.classList.add('open');
+}
+
+function renderColPanel() {
+  var p = document.getElementById('cpop'),
+    cols = orderedCols();
+  p.innerHTML =
+    '<div class="fp-t">Columns<span class="ml"></span><button class="lnk" onclick="resetCols()">Reset</button><button class="lnk" onclick="toggleColPanel()">Close</button></div>' +
+    '<div class="cols-list">' +
+    cols
+      .map(function (c, i) {
+        return (
+          '<div class="colrow"><input type="checkbox" title="Show / hide" ' +
+          (TCFG.hidden[c.k] ? '' : 'checked') +
+          ' onchange="colShow(\'' +
+          c.k +
+          '\', this.checked)"><input class="colname" value="' +
+          esc(c.t) +
+          '" title="Column name (original: ' +
+          esc(c.t0) +
+          ')" onchange="colRename(\'' +
+          c.k +
+          '\', this.value)"><button title="Move up" onclick="colMove(' +
+          i +
+          ',-1)"' +
+          (i ? '' : ' disabled') +
+          '>↑</button><button title="Move down" onclick="colMove(' +
+          i +
+          ',1)"' +
+          (i < cols.length - 1 ? '' : ' disabled') +
+          '>↓</button></div>'
+        );
+      })
+      .join('') +
+    '</div><p class="hint" style="margin:6px 14px 10px">Drag the edge of a column title to change its width. Saved in this browser.</p>';
+}
+
+function colShow(k, on) {
+  if (on) delete TCFG.hidden[k];
+  else TCFG.hidden[k] = 1;
+  saveTcfg();
+  renderList();
+}
+
+function colRename(k, v) {
+  v = String(v || '').trim();
+  if (v && v !== colDef(k).t) TCFG.labels[k] = v;
+  else delete TCFG.labels[k];
+  saveTcfg();
+  renderList();
+}
+
+function colMove(i, d) {
+  var keys = orderedCols().map(function (c) {
+    return c.k;
+  });
+  var j = i + d;
+  if (j < 0 || j >= keys.length) return;
+  keys.splice(j, 0, keys.splice(i, 1)[0]);
+  TCFG.order = keys;
+  saveTcfg();
+  renderList();
+  renderColPanel();
+}
+
+function resetCols() {
+  TCFG = JSON.parse(JSON.stringify(TCFG_DEFAULT));
+  saveTcfg();
+  renderList();
+  renderColPanel();
+}
+
+/** Drag the right edge of a column title to change its width. */
+function startResize(e, k) {
+  e.preventDefault();
+  e.stopPropagation();
+  var th = e.target.parentNode,
+    x0 = e.clientX,
+    w0 = th.getBoundingClientRect().width;
+  function move(ev) {
+    var w = Math.max(40, Math.round(w0 + ev.clientX - x0));
+    th.style.width = w + 'px';
+    TCFG.widths[k] = w;
+  }
+  function up() {
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('mouseup', up);
+    saveTcfg();
+  }
+  document.addEventListener('mousemove', move);
+  document.addEventListener('mouseup', up);
+}
+
+// clicking outside closes the Columns panel
+document.addEventListener('mousedown', function (e) {
+  var p = document.getElementById('cpop');
+  if (p && p.classList.contains('open') && !e.target.closest('#cpop') && !e.target.closest('.dtools')) p.classList.remove('open');
+});
+</script>

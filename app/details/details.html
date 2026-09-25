@@ -1,0 +1,12 @@
+<!-- Grey layer behind the panel: clicking it closes the panel -->
+<div class="dim" id="dim" onclick="closeDrawer()"></div>
+
+<!-- The panel itself. Title/meta/body are filled by openDetail() in details/details-js.html -->
+<aside class="drawer" id="drawer">
+  <div class="dh">
+    <button class="x" onclick="closeDrawer()" title="Close">×</button>
+    <h2 id="aTitle"></h2>
+    <div class="meta" id="aMeta"></div>
+  </div>
+  <div class="det" id="aBody"></div>
+</aside>

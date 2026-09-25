@@ -1,0 +1,262 @@
+<script>
+/* Draws the matrix for the current view */
+function scopeText() {
+  var u = S.units.length ? S.units.map(unitLabel).join(', ') : 'All service units';
+  var p = S.pipes.length
+    ? S.pipes
+        .slice()
+        .sort()
+        .map(function (k) {
+          return 'Pipeline ' + k;
+        })
+        .join(', ')
+    : 'All pipelines';
+  var parts = [S.db === 'newdb' ? 'New DB (validated on or after ' + fmtXl(newDbSerial()) + ')' : '', u];
+  if (S.owners.length)
+    parts.push(
+      'Owner: ' +
+        S.owners
+          .map(function (o) {
+            return o === '(none)' ? 'no owner' : cap(o);
+          })
+          .join(', ')
+    );
+  if (S.view === 1) parts.push(p); // pipelines only apply to map 01
+  return parts.filter(Boolean).join(' · ');
+}
+
+function filterText() {
+  var parts = [];
+  activeF().forEach(function (f) {
+    parts.push(
+      f.t +
+        ': ' +
+        S.F[f.k]
+          .map(function (v) {
+            return f.lab ? f.lab(v) : cap(v);
+          })
+          .join(', ')
+    );
+  });
+  if (S.social !== 'all') parts.push('Social media: ' + (S.social === 'yes' ? 'yes' : 'no'));
+  activeSF().forEach(function (f) {
+    parts.push(f.t + ': ' + S.SF[f.k].join(', '));
+  });
+  return parts.join(' · ');
+}
+
+/** Colour of a matrix cell: from --heat-low (few) to --heat-high (the most), set in core/base-css.html */
+function heatColor(t) {
+  if (!heatColor.lo) {
+    var css = getComputedStyle(document.documentElement);
+    var hex = function (name, dflt) {
+      var v = (css.getPropertyValue(name) || dflt).trim().replace('#', '');
+      return [0, 2, 4].map(function (i) {
+        return parseInt(v.substr(i, 2), 16);
+      });
+    };
+    heatColor.lo = hex('--heat-low', '#eaf2fb');
+    heatColor.hi = hex('--heat-high', '#7ea7da');
+  }
+  var c = heatColor.lo.map(function (lo, i) {
+    return Math.round(lo + (heatColor.hi[i] - lo) * Math.sqrt(t)); // sqrt: small numbers still get some colour
+  });
+  return 'rgb(' + c.join(',') + ')';
+}
+
+/** The toggle above map 01 (see PROJECT_MODES in core/config-js.html) */
+function projModeHtml() {
+  return (
+    '<div class="pmode"><span>Accounts with several projects</span><div class="seg">' +
+    PROJECT_MODES.map(function (m) {
+      return (
+        '<button class="' +
+        (S.projMode === m.k ? 'on' : '') +
+        '" onclick="setProjMode(\'' +
+        m.k +
+        '\')">' +
+        esc(m.t) +
+        '</button>'
+      );
+    }).join('') +
+    '</div>' +
+    (S.projMode === 'all' ? '<small>numbers = projects</small>' : '') +
+    '</div>'
+  );
+}
+
+function render() {
+  var main = document.getElementById('main');
+  if (!S.acc.length) return;
+  var def = MAPS[S.view];
+  var data = S.acc.filter(function (a) {
+    return def.filter(a) && pass(a);
+  });
+  var ft = filterText();
+  var projects = S.view === 1 && S.projMode === 'all'; // numbers count projects instead of accounts
+  var h =
+    '<div class="head"><div><h1>' +
+    esc(def.title) +
+    '</h1><div class="meta">' +
+    esc(scopeText()) +
+    (ft ? ' · ' + esc(ft) : '') +
+    '</div></div>' +
+    '<div class="hright">' +
+    (S.view === 1 ? projModeHtml() : '') +
+    '<label class="multi" title="Tick, then click several boxes (or row / column titles) to list their accounts together"><input type="checkbox" ' +
+    (S.multiCell ? 'checked' : '') +
+    ' onchange="S.multiCell=this.checked">select several boxes</label></div>' +
+    '</div>';
+  if (!data.length) {
+    main.innerHTML =
+      h +
+      '<div class="empty"><div class="empty-icon">🔍</div><p>No accounts for this selection.</p><p class="hint">Try another service unit, pipeline or filter.</p></div>';
+    return;
+  }
+
+  var cells = {},
+    rowT = {},
+    colT = {};
+  var total = 0;
+  data.forEach(function (a) {
+    placesOf(def, a).forEach(function (p) {
+      var k = p[0] + '§' + p[1];
+      (cells[k] = cells[k] || []).push(a);
+      rowT[p[0]] = (rowT[p[0]] || 0) + 1;
+      colT[p[1]] = (colT[p[1]] || 0) + 1;
+      total++;
+    });
+  });
+  var rows = def.rows.filter(function (x) {
+    return !x.opt || rowT[x.k];
+  });
+  var cols = def.cols.filter(function (x) {
+    return !x.opt || colT[x.k];
+  });
+  var max = 0;
+  Object.keys(cells).forEach(function (k) {
+    max = Math.max(max, cells[k].length);
+  });
+
+  h +=
+    '<div class="matrix"><table class="grid"><thead><tr><th class="yl"></th><th class="xl"></th><th class="xl" colspan="' +
+    cols.length +
+    '">' +
+    esc(def.x) +
+    ' →</th><th class="xl"></th></tr>';
+  h +=
+    '<tr><th class="yl"></th><th class="xl" style="vertical-align:bottom;text-align:left">' +
+    esc(def.y) +
+    ' ↓</th>' +
+    cols
+      .map(function (c) {
+        // every data column gets the same width; the label and Total columns only take what they need
+        return (
+          '<th class="col" style="width:' +
+          (94 / cols.length).toFixed(2) +
+          '%" onclick="selectLine(\'c\',\'' +
+          esc(String(c.k)) +
+          '\')" title="Select the whole column">' +
+          esc(c.t) +
+          '</th>'
+        );
+      })
+      .join('') +
+    '<th class="tot">Total</th></tr></thead><tbody>';
+  rows.forEach(function (rw, i) {
+    h +=
+      '<tr>' +
+      (i === 0 ? '<th class="yl" rowspan="' + rows.length + '"><div>' + esc(def.y) + '</div></th>' : '') +
+      '<th class="row" onclick="selectLine(\'r\',\'' +
+      esc(String(rw.k)) +
+      '\')" title="Select the whole row">' +
+      esc(rw.t) +
+      (rw.s ? '<small>' + esc(rw.s) + '</small>' : '') +
+      '</th>';
+    cols.forEach(function (c) {
+      var list = cells[rw.k + '§' + c.k] || [],
+        n = list.length,
+        key = String(rw.k) + '§' + String(c.k);
+      var hl = S.hl && S.hl.v === S.view && S.hl.key === key;
+      if (!n) {
+        h += '<td class="c zero' + (hl ? ' hl' : '') + '" data-key="' + esc(key) + '">–</td>';
+        return;
+      }
+      var sel = S.sel.indexOf(key) >= 0;
+      h +=
+        '<td class="c' +
+        (sel ? ' sel' : '') +
+        (hl ? ' hl' : '') +
+        '" data-key="' +
+        esc(key) +
+        '" style="background:' +
+        heatColor(max ? n / max : 0) +
+        '"><button onclick="openCell(\'' +
+        esc(String(rw.k)) +
+        "','" +
+        esc(String(c.k)) +
+        '\')" title="' +
+        esc(
+          n.toLocaleString('en-GB') +
+            (projects ? (n === 1 ? ' project' : ' projects') : n === 1 ? ' account' : ' accounts') +
+            ' · ' +
+            rw.t +
+            ' × ' +
+            c.t +
+            ' (click to see them)'
+        ) +
+        '">' +
+        n.toLocaleString('en-GB') +
+        '</button></td>';
+    });
+    h += '<td class="tot">' + (rowT[rw.k] || 0).toLocaleString('en-GB') + '</td></tr>';
+  });
+  h +=
+    '<tr class="sum"><th class="yl"></th><th>Total</th>' +
+    cols
+      .map(function (c) {
+        return '<td class="tot">' + (colT[c.k] || 0).toLocaleString('en-GB') + '</td>';
+      })
+      .join('') +
+    '<td class="tot grand"><b>' +
+    total.toLocaleString('en-GB') +
+    '</b> ' +
+    (projects ? 'projects' : 'acc.') +
+    '</td></tr>';
+  h += '</tbody></table></div>';
+  S._cells = cells;
+  S.sel = S.sel.filter(function (k) {
+    return cells[k]; // boxes that no longer exist (other filter) are dropped
+  });
+  if (S.sel.length) {
+    var label = function (key) {
+      var pk = key.split('§'),
+        rw0 = rows.filter(function (x) {
+          return String(x.k) === pk[0];
+        })[0],
+        cl0 = cols.filter(function (x) {
+          return String(x.k) === pk[1];
+        })[0];
+      return (rw0 ? rw0.t : pk[0]) + ' × ' + (cl0 ? cl0.t : pk[1]);
+    };
+    var all = [];
+    S.sel.forEach(function (k) {
+      all = all.concat(cells[k]);
+    });
+    S.list = all.filter(function (a, i) {
+      return all.indexOf(a) === i; // an account in 2 selected boxes (or with 2 projects) is listed once
+    });
+    S.listMeta =
+      S.sel.length === 1
+        ? def.title + ' › ' + def.y + ': ' + label(S.sel[0]).replace(' × ', ' × ' + def.x + ': ')
+        : def.title + ' › ' + S.sel.length + ' boxes: ' + S.sel.map(label).join(' · ');
+    h += listBlock(S.listMeta, true);
+  } else if (S.view === 4) {
+    S.list = data.slice();
+    S.listMeta = 'All accounts';
+    h += listBlock('All accounts in this selection · click a number above to narrow the list', false);
+  } else h += '<p class="hint">Click a number to see its accounts below.</p>';
+  main.innerHTML = h;
+  if (S.list && (S.sel.length || S.view === 4)) renderList();
+}
+</script>

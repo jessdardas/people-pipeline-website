@@ -1,0 +1,201 @@
+<script>
+/* Small helpers: escaping, formatting dates / money / labels */
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function hKey(s) {
+  return String(s == null ? '' : s)
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function lc(v) {
+  return v == null ? '' : String(v).toLowerCase().trim();
+}
+
+function num(v) {
+  if (v == null || v === '') return null;
+  var n = Number(v);
+  return isNaN(n) ? null : n;
+}
+
+function cap(s) {
+  s = String(s == null ? '' : s);
+  return s
+    .replace(/\b[a-z]/g, function (c) {
+      return c.toUpperCase();
+    })
+    .replace(/ - /g, ' – ');
+}
+
+function suKey(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/^pslab[\s-]+/, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^newyork$/, 'new york')
+    .trim();
+}
+
+function unitLabel(u) {
+  return u ? cap(u) : '—';
+}
+
+function phaseKey(v) {
+  var s = String(v == null ? '' : v).trim();
+  if (!s) return '';
+  var m = s.match(/^p?\s*([0-5])\b/i);
+  return m ? 'P' + m[1] : s.toUpperCase();
+}
+
+function pipeKey(v) {
+  var m = String(v == null ? '' : v).match(/([1-3])/);
+  return m ? +m[1] : null;
+}
+
+function toast(t) {
+  var e = document.getElementById('toast');
+  e.textContent = t;
+  e.style.display = 'block';
+  clearTimeout(toast.t);
+  toast.t = setTimeout(function () {
+    e.style.display = 'none';
+  }, 3200);
+}
+
+function api(fn, args) {
+  return new Promise(function (res, rej) {
+    var r = google.script.run.withSuccessHandler(res).withFailureHandler(rej);
+    r[fn].apply(r, args || []);
+  });
+}
+
+function todaySerial() {
+  return Date.now() / 864e5 + 25569;
+}
+
+function xlDate(s) {
+  return new Date(Math.round((s - 25569) * 864e5));
+}
+
+function fmtXl(s, time) {
+  if (s == null) return '';
+  if (s <= NEVER) return 'never';
+  var d = xlDate(s),
+    o = { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' };
+  if (time && Math.abs(s % 1) > 1e-6) {
+    o.hour = '2-digit';
+    o.minute = '2-digit';
+  }
+  return d.toLocaleString('en-GB', o);
+}
+
+/** "12 days ago" / "today" / "in 3 days". days = number of days since the date (optional). */
+function agoText(serial, days) {
+  var d = days != null ? Math.round(days) : Math.floor(todaySerial()) - Math.floor(serial);
+  if (d === 0) return 'today';
+  if (d === 1) return '1 day ago';
+  if (d === -1) return 'in 1 day';
+  return d > 0 ? d.toLocaleString('en-GB') + ' days ago' : 'in ' + (-d).toLocaleString('en-GB') + ' days';
+}
+
+/** A date with the days since it: "12 Mar 2025 (190 days ago)". */
+function dateAgo(serial, time, days) {
+  if (serial == null) return '';
+  if (serial <= NEVER) return 'never';
+  return fmtXl(serial, time) + ' (' + agoText(serial, days) + ')';
+}
+
+function fmtTs(ms) {
+  return ms
+    ? new Date(ms).toLocaleString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    : '';
+}
+
+function fmtMoney(v, cur) {
+  if (v == null) return '';
+  return (cur || '€') + ' ' + Math.round(v).toLocaleString('en-GB');
+}
+
+function pretty(h) {
+  var s = String(h)
+    .replace(/^pslab_/i, '')
+    .replace(/name$/i, '')
+    .replace(/_/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .trim();
+  var o = {
+    owneridname: 'Owner',
+    serviceunitname: 'Service unit',
+    serviceunit: 'Service unit',
+    prep1count: 'Pre-P1 projects',
+    postp1count: 'Post-P1 projects',
+    postp1amount: 'Post-P1 value',
+    phasegroup: 'Phase',
+    opportunityid: 'Opportunity ID',
+    accountid: 'Account ID',
+    countryid: 'Country ID',
+    lastcontact1date: 'Last contact',
+    lastprojectdatein: 'Last project',
+    lastmeetingdate: 'Last meeting',
+    lastmeetingindate: 'Last meeting in',
+    lastmeetingoutdate: 'Last meeting out',
+    accountcreation: 'Account created',
+    accountcreateddays: 'Account age',
+    originalcategory: 'Original category',
+    classification2: 'Project bucket',
+    currencysymbol: 'Currency',
+    username: 'User name',
+    pslabusername: 'Username',
+    metin: 'Met in',
+    pslabplatformname: 'Platform',
+    pslablink: 'Link',
+    pslabfollowersname: 'Followers',
+    pslabconnectionsname: 'Connections',
+    pslabcontentqualityname: 'Content quality',
+    pslabpostingfrequencyname: 'Posting frequency',
+    pslabfollowspslabname: 'Follows PSLab',
+    lastprojectdays: 'Last project (days ago)',
+    lastmeetingdays: 'Last meeting (days ago)',
+    classificationorder: 'Classification order',
+    categoryorder: 'Category order',
+    contactperson: 'Contact person',
+    contact: 'Contact person',
+    projectname: 'Project name',
+    statecodename: 'Status',
+    finaltype: 'Final type',
+    validationtaskenddate: 'Validated on',
+    validationtaskowner: 'Validated by',
+    validationtaskcreatedby: 'Validation created by',
+    contactpersons: 'Contact person',
+    contactname: 'Contact person',
+    jobtitle: 'Job title',
+    emailaddress1: 'Email',
+    email: 'Email',
+    telephone1: 'Phone',
+    mobilephone: 'Mobile'
+  };
+  return o[hKey(h)] || s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function loadScript(src) {
+  return new Promise(function (res, rej) {
+    var s = document.createElement('script');
+    s.src = src;
+    s.onload = res;
+    s.onerror = function () {
+      rej(new Error('Could not load ' + src));
+    };
+    document.head.appendChild(s);
+  });
+}
+</script>

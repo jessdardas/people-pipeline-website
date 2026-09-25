@@ -1,0 +1,132 @@
+<script>
+/* Admin panel: change the New DB date for everyone + "Data check" (how each sheet of the Excel file was read).
+   The password is checked on the server (server/Code.js → saveSettings / checkSource), never in the page. */
+var ADMIN = { pw: '', check: null, err: '', busy: false };
+
+function openAdmin() {
+  document.getElementById('admin').classList.add('open');
+  document.getElementById('adminDim').classList.add('open');
+  renderAdmin();
+  var i = document.getElementById('adminPw');
+  if (i) i.focus();
+}
+
+function closeAdmin() {
+  var a = document.getElementById('admin');
+  if (!a) return;
+  a.classList.remove('open');
+  document.getElementById('adminDim').classList.remove('open');
+}
+
+/** Password → the server checks it and sends back the data check. */
+function adminUnlock() {
+  var pw = document.getElementById('adminPw').value;
+  ADMIN.busy = true;
+  ADMIN.err = '';
+  renderAdmin();
+  api('checkSource', [pw])
+    .then(function (r) {
+      ADMIN.pw = pw;
+      ADMIN.check = r;
+      ADMIN.busy = false;
+      renderAdmin();
+    })
+    .catch(function (e) {
+      ADMIN.busy = false;
+      ADMIN.err = e.message || String(e);
+      renderAdmin();
+    });
+}
+
+/** Save the New DB date for everyone. */
+function adminSave() {
+  var v = document.getElementById('adminDate').value;
+  ADMIN.busy = true;
+  renderAdmin();
+  api('saveSettings', [ADMIN.pw, { newDbFrom: v }])
+    .then(function (s) {
+      S.settings = s;
+      ADMIN.busy = false;
+      renderAdmin();
+      renderAll();
+      toast('Saved — everyone now sees New DB from ' + fmtXl(newDbSerial()));
+    })
+    .catch(function (e) {
+      ADMIN.busy = false;
+      ADMIN.err = e.message || String(e);
+      renderAdmin();
+    });
+}
+
+var ROLE_TEXT = {
+  accounts: 'Accounts (one row per account)',
+  projects: 'Projects (list per account)',
+  contacts: 'Contact persons (list per account)',
+  social: 'Social media (list per account)',
+  merge: 'Merged into the account',
+  list: 'Other linked rows (list)',
+  skipped: 'Not used'
+};
+
+function renderAdmin() {
+  var h = '';
+  if (!ADMIN.pw) {
+    h +=
+      '<div class="row"><input type="password" id="adminPw" placeholder="Password" onkeydown="if(event.key===\'Enter\')adminUnlock()">' +
+      '<button class="btn" onclick="adminUnlock()">' +
+      (ADMIN.busy ? '…' : 'Open') +
+      '</button></div>';
+  } else {
+    h +=
+      '<h3>New DB</h3><div class="row"><span>Show accounts validated on or after</span>' +
+      '<input type="date" id="adminDate" value="' +
+      esc(S.settings.newDbFrom || '') +
+      '"><button class="btn" onclick="adminSave()">' +
+      (ADMIN.busy ? '…' : 'Save for everyone') +
+      '</button></div>';
+    var c = ADMIN.check;
+    if (c) {
+      h +=
+        '<h3>Data check — ' +
+        esc(c.source.name) +
+        ' (changed ' +
+        esc(fmtTs(c.source.updated)) +
+        '), ' +
+        c.accounts.toLocaleString('en-GB') +
+        ' accounts</h3>' +
+        '<table class="chk"><thead><tr><th>Sheet</th><th>Read as</th><th>Rows</th><th>Linked</th><th>Not linked</th><th>Notes</th></tr></thead><tbody>' +
+        c.checks
+          .map(function (x) {
+            return (
+              '<tr><td><b>' +
+              esc(x.sheet) +
+              '</b><div class="cols">' +
+              esc((x.columns || []).join(', ')) +
+              '</div></td><td>' +
+              esc(ROLE_TEXT[x.role] || x.role) +
+              '</td><td>' +
+              (x.rows == null ? '' : x.rows) +
+              '</td><td>' +
+              (x.linked == null ? '' : x.linked) +
+              '</td><td class="' +
+              (x.unmatched ? 'warn' : '') +
+              '">' +
+              (x.unmatched || '') +
+              (x.unmatchedSample && x.unmatchedSample.length ? '<div class="cols">e.g. ' + esc(x.unmatchedSample.join(', ')) + '</div>' : '') +
+              '</td><td>' +
+              esc(
+                [x.note, x.duplicates ? x.duplicates + ' identical rows ignored' : '', x.empty ? x.empty + ' empty rows' : '']
+                  .filter(Boolean)
+                  .join(' · ')
+              ) +
+              '</td></tr>'
+            );
+          })
+          .join('') +
+        '</tbody></table><p class="hint">"Not linked" = rows whose accountid is not in the accounts sheet.</p>';
+    }
+  }
+  if (ADMIN.err) h += '<p class="err">' + esc(ADMIN.err) + '</p>';
+  document.getElementById('adminBody').innerHTML = h;
+}
+</script>

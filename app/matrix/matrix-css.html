@@ -1,0 +1,250 @@
+<style>
+/* ==========================================================================
+   MATRIX: title of the map + the coloured grid of numbers
+   Filled by matrix/matrix-js.html (render). Rows/columns of each map: matrix/maps-js.html
+   The colours of the cells are --heat-low / --heat-high in core/base-css.html
+   ========================================================================== */
+
+/* map title ("Current pipeline") + selection text under it */
+h1 {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+/* the white card around the grid */
+.matrix {
+  overflow: auto;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 14px 18px 10px 10px;
+}
+
+table.grid {
+  border-collapse: separate;
+  border-spacing: 4px; /* the gap between the cells */
+  width: 100%;
+}
+.grid th,
+.grid td {
+  padding: 0;
+}
+
+/* column titles (P0, P1 … / 0–6 months …) */
+.grid th.col {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-soft);
+  padding: 6px 4px;
+  text-align: center;
+}
+
+/* the axis names ("Project phase (latest) →", "Last meeting ↓") */
+.grid th.xl {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 2px 4px;
+  text-align: center;
+  white-space: nowrap;
+}
+.grid th.yl {
+  width: 1%; /* as narrow as possible - the cells get the rest of the width */
+  min-width: 22px;
+  vertical-align: middle;
+}
+.grid th.yl div {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: auto;
+}
+
+/* row titles (< 6 months, 0–3 months …). width 1% = only as wide as the longest title */
+.grid th.row {
+  width: 1%;
+  white-space: nowrap;
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 0 10px 0 4px; /* space between the row titles and the cells */
+  height: 56px;
+}
+.grid th.row small {
+  display: block;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* one cell with a number */
+.grid td.c {
+  height: 56px;
+  min-width: 64px;
+  text-align: center;
+  border-radius: var(--cell-radius);
+  position: relative;
+  color: var(--heat-text);
+  transition:
+    transform 0.12s,
+    box-shadow 0.12s;
+}
+.grid td.c button {
+  width: 100%;
+  height: 100%;
+  min-height: 56px;
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--cell-radius);
+}
+.grid td.c:not(.zero):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(45, 79, 124, 0.25);
+}
+/* the cell whose accounts are shown below */
+.grid td.c.sel {
+  box-shadow: inset 0 0 0 3px var(--heat-selected);
+}
+/* a cell with no accounts */
+.grid td.zero {
+  color: var(--text-faint);
+  background: transparent;
+  border: 1.5px dashed var(--line);
+  font-size: 12px;
+}
+
+/* totals: last column and last row - plain bold numbers right next to the grid (no boxes) */
+.grid td.tot,
+.grid th.tot {
+  width: 1%;
+  white-space: nowrap;
+  padding: 0 4px 0 10px;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.grid th.tot {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-soft);
+}
+.grid tr.sum th,
+.grid tr.sum td {
+  height: 34px;
+  vertical-align: top;
+  padding-top: 6px;
+}
+.grid tr.sum td.tot {
+  text-align: center;
+  padding: 6px 0 0;
+}
+.grid tr.sum th {
+  text-align: left;
+  font-weight: 800;
+  font-size: 13px;
+  padding: 6px 10px 0 4px;
+}
+.grid tr.sum td.grand {
+  text-align: left;
+  padding-left: 10px;
+}
+.grid td.grand b {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+/* map 01 toggle: newest project / most advanced phase / all projects */
+.head {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px 24px;
+  flex-wrap: wrap;
+}
+.pmode {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+.pmode small {
+  color: var(--text-faint);
+  font-size: 11.5px;
+}
+.seg {
+  display: flex;
+  background: var(--soft);
+  padding: 3px;
+  border-radius: 999px;
+}
+.seg button {
+  padding: 5px 13px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-soft);
+  border-radius: 999px;
+}
+.seg button:hover {
+  color: var(--text);
+}
+.seg button.on {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* the yellow glow on the cell of an account found with search / "Show on map" */
+.grid td.c.hl {
+  box-shadow:
+    0 0 0 3px var(--found),
+    0 0 22px 4px rgba(255, 210, 63, 0.8) !important;
+  animation: glow 1s ease-in-out 5;
+}
+@keyframes glow {
+  50% {
+    box-shadow:
+      0 0 0 3px var(--found),
+      0 0 6px 1px rgba(255, 210, 63, 0.4);
+  }
+}
+
+/* right side of the title: map 01 toggle + "select several boxes" */
+.hright {
+  display: flex;
+  align-items: center;
+  gap: 8px 18px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.head .multi {
+  font-size: 12px;
+  color: var(--text-soft);
+  padding: 0;
+  margin: 0;
+}
+/* row and column titles select the whole row / column */
+.grid th.row,
+.grid th.col {
+  cursor: pointer;
+}
+.grid th.row:hover,
+.grid th.col:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+</style>

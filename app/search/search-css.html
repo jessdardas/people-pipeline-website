@@ -1,0 +1,84 @@
+<style>
+/* ==========================================================================
+   SEARCH: the "Search an account…" box (top right) and its results list
+   Markup: header/header.html (.gs) · results filled by search/search-js.html
+   ========================================================================== */
+.gs {
+  position: relative;
+  width: 280px;
+  max-width: 100%;
+}
+.gs-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  width: 15px;
+  height: 15px;
+  transform: translateY(-50%);
+  fill: none;
+  stroke: var(--text-faint);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+.gs input {
+  width: 100%;
+  border: 1.5px solid transparent;
+  background: var(--soft);
+  border-radius: 999px;
+  padding: 7px 14px 7px 32px;
+  outline: none;
+  font-size: 12.5px;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.gs input:focus {
+  background: var(--surface);
+  border-color: var(--accent);
+}
+
+/* results dropdown */
+.gres {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 440px;
+  max-width: 92vw;
+  max-height: 440px;
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  z-index: 40;
+  display: none;
+}
+.gres.open {
+  display: block;
+}
+.gres button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: var(--radius);
+}
+.gres button:hover,
+.gres button.act {
+  background: var(--accent-soft);
+}
+.gres b {
+  font-weight: 600;
+}
+.gres small {
+  display: block;
+  color: var(--text-faint);
+  font-size: 11.5px;
+}
+.gres .none {
+  padding: 10px 12px;
+  color: var(--text-faint);
+}
+</style>

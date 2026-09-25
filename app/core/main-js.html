@@ -1,0 +1,69 @@
+<script>
+/* Loading, refresh and auto refresh — starts the app (keep this file last) */
+
+/**
+ * Reads the data from the server and draws everything.
+ * o.force  = read the Excel file again (↻ button and the hourly refresh), not the stored copy
+ * o.reason = 'first' | 'manual' | 'auto' - decides which message is shown
+ */
+function load(o) {
+  o = o || {};
+  S.busy = true;
+  renderRefresh();
+  var keep = { detail: S.detail, sel: S.sel.slice(), hash: S.source.hash };
+  return api('getData', [!!o.force])
+    .then(function (d) {
+      build(d);
+      S.checked = Date.now();
+      S.busy = false;
+      renderAll();
+      if (keep.sel.length && S.view !== 4) {
+        S.sel = keep.sel;
+        render();
+      }
+      if (keep.detail && S.byId[keep.detail]) openDetail(S.byId[keep.detail].i);
+      var same = keep.hash && keep.hash === S.source.hash;
+      if (o.reason === 'manual')
+        toast(same ? 'No changes — the data is up to date' : 'Updated — the new data is loaded');
+      else if (o.reason === 'auto' && keep.hash && !same) toast('Data updated automatically');
+    })
+    .catch(function (e) {
+      S.busy = false;
+      renderRefresh();
+      if (o.reason === 'first' || !S.acc.length)
+        document.getElementById('main').innerHTML = '<div class="empty">Error: ' + esc(e.message || e) + '</div>';
+      else toast('Refresh failed: ' + (e.message || e));
+    });
+}
+
+/** The ↻ button: always reads the Excel file again, and says whether anything changed. */
+function refresh() {
+  if (S.busy) return;
+  load({ force: true, reason: 'manual' });
+}
+
+// every hour: read the Excel file again (the time at the top changes even when nothing changed)
+setInterval(function () {
+  if (!S.busy) load({ force: true, reason: 'auto' });
+}, 60 * 60 * 1000);
+
+// every 10 minutes: if a new file was uploaded in the meantime, load it straight away
+setInterval(function () {
+  if (S.busy) return;
+  api('getStamp', [])
+    .then(function (st) {
+      if (st.updated !== S.source.updated) load({ reason: 'auto' });
+    })
+    .catch(function () {});
+}, 10 * 60 * 1000);
+
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') {
+    closePanel();
+    closeDrawer();
+    closeAdmin();
+  }
+});
+
+load({ reason: 'first' });
+</script>

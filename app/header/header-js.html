@@ -1,0 +1,282 @@
+<script>
+/* Refresh info, service unit buttons, pipeline menu, tabs */
+/** "Last refreshed 14:05" = when the data was last read from the Excel file (↻ = read it again now). */
+function renderRefresh() {
+  var s = S.source;
+  document.getElementById('rf').innerHTML = s.updated
+    ? '<span title="' +
+      esc((s.name || '') + ' · file last changed ' + fmtTs(s.updated) + ' · refreshes automatically every hour') +
+      '">Last refreshed <b>' +
+      esc(fmtTs(S.checked)) +
+      '</b></span><button onclick="refresh()" title="Refresh now">' +
+      (S.busy ? '…' : '↻') +
+      '</button>'
+    : S.busy
+      ? 'Loading…'
+      : '';
+}
+
+/** Toggle next to the title: People pipeline (everything) / New DB (validated on or after the admin date). */
+function renderDb() {
+  var d = S.settings.newDbFrom ? fmtXl(newDbSerial()) : '';
+  document.getElementById('db').innerHTML =
+    '<div class="seg"><button class="' +
+    (S.db === 'pipeline' ? 'on' : '') +
+    '" onclick="setDb(\'pipeline\')">People pipeline</button><button class="' +
+    (S.db === 'newdb' ? 'on' : '') +
+    '" onclick="setDb(\'newdb\')" title="Accounts validated on or after ' +
+    esc(d) +
+    '">New DB</button></div>' +
+    (S.db === 'newdb' ? '<small>validated on or after ' + esc(d) + '</small>' : '');
+}
+
+function setDb(db) {
+  S.db = db;
+  changed();
+}
+
+/** Owners of the chosen service unit(s): pick one or more; nothing picked = all owners. */
+function renderOwners() {
+  var box = document.getElementById('owners');
+  if (!S.units.length) {
+    box.innerHTML = '';
+    box.style.display = 'none';
+    return;
+  }
+  var cnt = {};
+  S.acc.forEach(function (a) {
+    if (S.units.indexOf(a.su) >= 0) {
+      var o = a.owner || '(none)';
+      cnt[o] = (cnt[o] || 0) + 1;
+    }
+  });
+  var list = Object.keys(cnt).sort(function (x, y) {
+    return (x === '(none)') - (y === '(none)') || x.localeCompare(y);
+  });
+  S._owners = list;
+  box.style.display = '';
+  box.innerHTML =
+    '<span class="olbl">Owner</span><button class="' +
+    (S.owners.length ? '' : 'on') +
+    '" onclick="setOwner(null)">All</button>' +
+    list
+      .map(function (o) {
+        return (
+          '<button class="' +
+          (S.owners.indexOf(o) >= 0 ? 'on' : '') +
+          '" onclick="setOwner(' +
+          list.indexOf(o) +
+          ')" title="' +
+          cnt[o] +
+          ' accounts">' +
+          esc(o === '(none)' ? 'No owner' : cap(o)) +
+          '</button>'
+        );
+      })
+      .join('');
+}
+
+/** Click an owner to add / remove it (several can be picked). i = position in the owner row, null = All. */
+function setOwner(i) {
+  var o = i === null ? null : S._owners[i];
+  if (o === null) S.owners = [];
+  else {
+    var i = S.owners.indexOf(o);
+    if (i >= 0) S.owners.splice(i, 1);
+    else S.owners.push(o);
+  }
+  changed();
+}
+
+function renderUnits() {
+  var inGrp = {};
+  GROUPS.forEach(function (g) {
+    g.units.forEach(function (u) {
+      inGrp[u] = 1;
+    });
+  });
+  var ub = function (u) {
+    return (
+      '<button class="' +
+      (S.units.indexOf(u) >= 0 ? 'on ' : '') +
+      (S.have[u] ? '' : 'nodata') +
+      '" onclick="setUnit(\'' +
+      esc(u) +
+      '\')" title="' +
+      (S.have[u] || 0) +
+      ' accounts">' +
+      esc(unitLabel(u)) +
+      '</button>'
+    );
+  };
+  var h = '<button class="' + (S.units.length ? '' : 'on') + '" onclick="setUnit(null)">All</button>';
+  GROUPS.forEach(function (g, gi) {
+    var on = g.units.every(function (x) {
+      return S.units.indexOf(x) >= 0;
+    });
+    h +=
+      '<span class="ugrp"><button class="grp ' +
+      (on ? 'on' : '') +
+      '" onclick="setGroup(' +
+      gi +
+      ')">' +
+      esc(g.t) +
+      '</button><span class="row">' +
+      g.units.map(ub).join('') +
+      '</span></span>';
+  });
+  S.allUnits.forEach(function (u) {
+    if (!inGrp[u]) h += ub(u);
+  });
+  h +=
+    '<label class="multi" title="Tick to select several service units at once"><input type="checkbox" ' +
+    (S.multiUnit ? 'checked' : '') +
+    ' onchange="toggleMulti(this.checked)">multiple</label>';
+  document.getElementById('units').innerHTML = h;
+
+  var lbl = S.pipes.length
+    ? S.pipes
+        .slice()
+        .sort()
+        .map(function (k) {
+          return 'Pipeline ' + k;
+        })
+        .join(' + ')
+    : 'All pipelines';
+  var p = '<button class="pbtn" onclick="S.pm=!S.pm;renderUnits()">' + esc(lbl) + ' <i>▾</i></button>';
+  if (S.pm)
+    p +=
+      '<div class="pmenu">' +
+      PIPES.map(function (x) {
+        return (
+          '<label><input type="checkbox" ' +
+          (S.pipes.indexOf(x.k) >= 0 ? 'checked' : '') +
+          ' onchange="setPipe(' +
+          x.k +
+          ')"><span><b>' +
+          esc(x.t) +
+          '</b><small>' +
+          esc(x.s) +
+          '</small></span></label>'
+        );
+      }).join('') +
+      '<div class="pm-f"><button class="lnk" onclick="setPipe(null)">All pipelines</button><button class="lnk" onclick="S.pm=false;renderUnits()">Close</button></div></div>';
+  // pipelines only apply to map 01 (the other maps always show every pipeline)
+  document.getElementById('pipes').innerHTML = S.view === 1 ? p : '';
+
+  document.getElementById('tabs').innerHTML =
+    [1, 2, 3]
+      .map(function (i) {
+        return (
+          '<button class="' +
+          (S.view === i ? 'on' : '') +
+          '" onclick="setView(' +
+          i +
+          ')"><b>0' +
+          i +
+          '</b>' +
+          MAPS[i].title +
+          '</button>'
+        );
+      })
+      .join('') +
+    '<button class="far ' +
+    (S.view === 4 ? 'on' : '') +
+    '" onclick="setView(4)">All accounts</button>';
+}
+
+function setUnit(u) {
+  if (u === null) S.units = [];
+  else if (S.multiUnit) {
+    var i = S.units.indexOf(u);
+    if (i >= 0) S.units.splice(i, 1);
+    else S.units.push(u);
+  } else S.units = S.units.length === 1 && S.units[0] === u ? [] : [u];
+  pruneOwners();
+  changed();
+}
+
+function setGroup(gi) {
+  var g = GROUPS[gi],
+    on = g.units.every(function (x) {
+      return S.units.indexOf(x) >= 0;
+    });
+  if (on)
+    S.units = S.units.filter(function (x) {
+      return g.units.indexOf(x) < 0;
+    });
+  else if (S.multiUnit)
+    g.units.forEach(function (x) {
+      if (S.units.indexOf(x) < 0) S.units.push(x);
+    });
+  else S.units = g.units.slice();
+  pruneOwners();
+  changed();
+}
+
+function toggleMulti(on) {
+  S.multiUnit = on;
+  var g = GROUPS[0].units,
+    isGrp =
+      S.units.length === g.length &&
+      g.every(function (x) {
+        return S.units.indexOf(x) >= 0;
+      });
+  if (!on && S.units.length > 1 && !isGrp) {
+    S.units = [S.units[0]];
+    pruneOwners();
+    changed();
+  } else renderUnits();
+}
+
+function setPipe(k) {
+  if (k === null) S.pipes = [];
+  else {
+    var i = S.pipes.indexOf(k);
+    if (i >= 0) S.pipes.splice(i, 1);
+    else S.pipes.push(k);
+  }
+  changed();
+}
+
+/** Keep only the picked owners that still exist in the chosen service units. */
+function pruneOwners() {
+  S.owners = S.owners.filter(function (o) {
+    return S.acc.some(function (a) {
+      return (!S.units.length || S.units.indexOf(a.su) >= 0) && (a.owner || '(none)') === o;
+    });
+  });
+  if (!S.units.length) S.owners = [];
+}
+
+function setView(i) {
+  S.view = i;
+  changed();
+}
+
+function changed() {
+  S.hl = null;
+  S.sel = [];
+  S.g = newGrid();
+  closePanel();
+  closeDrawer();
+  renderAll();
+}
+
+function renderAll() {
+  renderRefresh();
+  renderDb();
+  renderUnits();
+  renderOwners();
+  renderFilters();
+  render();
+}
+
+// clicking anywhere else closes the pipeline menu
+document.addEventListener('mousedown', function (e) {
+  if (S.pm && !e.target.closest('.pipes')) {
+    S.pm = false;
+    renderUnits();
+  }
+});
+</script>

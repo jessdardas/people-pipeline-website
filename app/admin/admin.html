@@ -1,0 +1,10 @@
+<!-- Admin: a tiny, almost invisible dot at the bottom right of the page. Opens the admin panel (password needed). -->
+<button class="admin-dot" id="adminDot" onclick="openAdmin()" aria-label="Admin"></button>
+
+<div class="admin-dim" id="adminDim" onclick="closeAdmin()"></div>
+<div class="admin" id="admin">
+  <button class="x" onclick="closeAdmin()" title="Close">×</button>
+  <h2>Admin</h2>
+  <!-- filled by renderAdmin() in admin/admin-js.html -->
+  <div id="adminBody"></div>
+</div>

@@ -1,0 +1,253 @@
+<script>
+/* Account details side panel */
+/** noAgo: leave out the "(N days ago)" after dates (used by the Excel export). */
+function fmtVal(h, v, a, noAgo) {
+  if (v == null || v === '') return '—';
+  var k = hKey(h);
+  if (typeof v === 'number') {
+    if (/date|creation/.test(k) && v > 20000) return noAgo ? fmtXl(v, true) : dateAgo(v, true);
+    if (/days$/.test(k)) return Math.round(v).toLocaleString('en-GB') + ' days';
+    if (/amount|value|revenue|price|budget/.test(k)) return fmtMoney(v, a && a.cur);
+    return (Math.round(v * 100) / 100).toLocaleString('en-GB');
+  }
+  return String(v);
+}
+
+function cellHtml(h, v, a) {
+  var s = fmtVal(h, v, a);
+  if (/serviceunit/.test(hKey(h)) && typeof v === 'string') return esc(unitLabel(suKey(v)));
+  if (typeof v === 'string' && /^https?:\/\//i.test(v))
+    return (
+      '<a href="' +
+      esc(v) +
+      '" target="_blank" rel="noopener">' +
+      esc(v.replace(/^https?:\/\/(www\.)?/, '').replace(/\?.*$/, '')) +
+      '</a>'
+    );
+  return esc(s);
+}
+
+var DET_HIDE = {};
+[
+  'name',
+  'classification',
+  'classificationorder',
+  'category',
+  'categoryorder',
+  'originalcategory',
+  'industry',
+  'country',
+  'serviceunit',
+  'owneridname',
+  'metin',
+  'lastmeetingdate',
+  'lastmeetingindate',
+  'lastmeetingoutdate',
+  'lastmeetingdays',
+  'lastcontact1date',
+  'lastprojectdatein',
+  'lastprojectdays',
+  'phasegroup',
+  'pipeline',
+  'prep1count',
+  'postp1count',
+  'postp1amount',
+  'currencysymbol',
+  'accountcreation',
+  'accountcreateddays',
+  'classification2',
+  'username'
+].forEach(function (k) {
+  DET_HIDE[k] = 1;
+});
+
+var NAME_KEYS = ['projectname', 'opportunityname', 'name', 'topic', 'title', 'project'];
+
+function nameCol(s) {
+  if (s._nc === undefined) {
+    s._nc = -1;
+    for (var i = 0; i < s.hk.length; i++)
+      if (
+        NAME_KEYS.indexOf(s.hk[i]) >= 0 ||
+        (/name/.test(s.hk[i]) && !/serviceunit|owner|user/.test(s.hk[i]))
+      ) {
+        s._nc = i;
+        break;
+      }
+  }
+  return s._nc;
+}
+
+function projName(e) {
+  var s = S.sheets[e.s],
+    c = nameCol(s);
+  return c < 0 ? '' : cv(e.s, c, e.j) || '';
+}
+
+function rowsTable(entries, a) {
+  if (!entries.length) return '<p class="meta">None.</p>';
+  var si = entries[0].s,
+    s = S.sheets[si];
+  // no ids, no columns that are empty for every row; a project/opportunity name column goes first
+  var cols = s.cols
+    .map(function (c, i) {
+      return i;
+    })
+    .filter(function (i) {
+      return (
+        !/id$/.test(s.hk[i]) &&
+        !(s.role === 'projects' && /^(accountname|serviceunitname)$/.test(s.hk[i])) && // already shown above
+        ((s.role === 'projects' && i === nameCol(s)) ||
+          entries.some(function (e) {
+            return cv(e.s, i, e.j) != null;
+          }))
+      );
+    });
+  var nc = s.role === 'projects' ? nameCol(s) : -1;
+  cols.sort(function (x, y) {
+    return (x === nc ? -1 : 0) - (y === nc ? -1 : 0);
+  });
+  var h =
+    '<div class="tw"><table class="tb"><thead><tr><th class="cnt">#</th>' +
+    cols
+      .map(function (i) {
+        return '<th>' + esc(i === nc ? 'Project name' : pretty(s.cols[i].h)) + '</th>';
+      })
+      .join('') +
+    '</tr></thead><tbody>';
+  entries.forEach(function (e, n) {
+    h +=
+      '<tr><td class="cnt">' +
+      (n + 1) +
+      '</td>' +
+      cols
+        .map(function (i) {
+          return '<td>' + cellHtml(s.cols[i].h, cv(e.s, i, e.j), a) + '</td>';
+        })
+        .join('') +
+      '</tr>';
+  });
+  return h + '</tbody></table></div>';
+}
+
+function locate(a) {
+  var v = viewOf(a);
+  var def = MAPS[v],
+    p = placesOf(def, a)[0],
+    key = String(p[0]) + '§' + String(p[1]);
+  var rw = def.rows.filter(function (x) {
+      return String(x.k) === String(p[0]);
+    })[0],
+    cl = def.cols.filter(function (x) {
+      return String(x.k) === String(p[1]);
+    })[0];
+  return {
+    v: v,
+    key: key,
+    txt: def.title + ' › ' + def.y + ' ' + (rw ? rw.t : p[0]) + ' × ' + def.x + ' ' + (cl ? cl.t : p[1])
+  };
+}
+
+function openDetail(i) {
+  var a = S.acc[i];
+  if (!a) return;
+  S.detail = a.id;
+  document.getElementById('aTitle').textContent = a.name;
+  document.getElementById('aMeta').textContent = [unitLabel(a.su), cap(a.cls), cap(a.category)]
+    .filter(Boolean)
+    .join(' · ');
+  var loc = locate(a);
+  var kv = [
+    ['Classification', cap(a.cls)],
+    ['Category', cap(a.category)],
+    ['Industry', cap(a.industry)],
+    ['Country', cap(a.country)],
+    ['Service unit', unitLabel(a.su)],
+    ['Owner', cap(a.owner)],
+    ['Met in', cap(a.metIn)],
+    ['Last meeting', a.lmDate ? dateAgo(a.lmDate, false, a.lastMeeting) : 'never'],
+    ['Last contact', a.lcDate ? dateAgo(a.lcDate, false, a.lastContact) : 'never'],
+    ['Last project', a.lpDate ? dateAgo(a.lpDate, false, a.lastProject) : 'never'],
+    ['Pipeline', a.pipe ? PIPES[a.pipe - 1].t + ' — ' + PIPES[a.pipe - 1].s : '—'],
+    ['Pre-P1 projects', a.preN],
+    ['Post-P1 projects', a.postN],
+    ['Post-P1 value', a.postV ? fmtMoney(a.postV, a.cur) : '—'],
+    ['Projects in list', a.projects.length + (a.projPhases.length ? ' · ' + a.projPhases.join(', ') : '')],
+    ['Social media', a.social.length ? socialSummary(a) : 'no'],
+    ['Last validated on', a.validDate ? dateAgo(a.validDate, false, a.validDays) : '—'],
+    ['Account created', dateAgo(num(F(a, 'account_creation'))) || '—']
+  ];
+  var h =
+    '<div class="loc"><span>' +
+    esc(loc.txt) +
+    '</span><button onclick="goTo(' +
+    a.i +
+    ')">Show on map</button></div>';
+  h +=
+    '<h3>Overview</h3><div class="kv">' +
+    kv
+      .map(function (x) {
+        return '<div>' + esc(x[0]) + '</div><div>' + esc(x[1] === '' || x[1] == null ? '—' : x[1]) + '</div>';
+      })
+      .join('') +
+    '</div>';
+  // projects
+  var pr = a.projects.slice().sort(function (x, y) {
+    return String(cellBy(y.s, y.j, 'Phase_Group')).localeCompare(String(cellBy(x.s, x.j, 'Phase_Group')));
+  });
+  // contact persons (Query 5 in the Excel file) - only shown here, not in the big table
+  h +=
+    '<h3>Contact persons (' +
+    a.contacts.length +
+    ')</h3>' +
+    (a.contacts.length ? groupTables(a.contacts, a) : '<p class="meta">None yet.</p>');
+  h += '<h3>Projects (' + pr.length + ')</h3>' + groupTables(pr, a);
+  h += '<h3>Social media (' + a.social.length + ')</h3>' + groupTables(a.social, a);
+  if (a.lists.length) h += '<h3>Other linked rows (' + a.lists.length + ')</h3>' + groupTables(a.lists, a);
+  // any other column in the file (new query columns show up here automatically)
+  var more = [];
+  S.sheets.forEach(function (s) {
+    if (s.role !== 'accounts' && s.role !== 'merge') return;
+    var j = s.role === 'accounts' ? a.i : a.mr[s.si];
+    s.cols.forEach(function (c, ci) {
+      if (DET_HIDE[s.hk[ci]] || /id$/.test(s.hk[ci]) || /validat/.test(s.hk[ci])) return;
+      more.push(
+        '<div>' +
+          esc(pretty(c.h)) +
+          '</div><div>' +
+          (j == null ? '—' : cellHtml(c.h, cv(s.si, ci, j), a)) +
+          '</div>'
+      );
+    });
+  });
+  if (more.length) h += '<h3>More details</h3><div class="kv">' + more.join('') + '</div>';
+  document.getElementById('aBody').innerHTML = h;
+  document.getElementById('aBody').scrollTop = 0;
+  openDrawer();
+}
+
+function groupTables(entries, a) {
+  if (!entries.length) return '<p class="meta">None.</p>';
+  var by = {};
+  entries.forEach(function (e) {
+    (by[e.s] = by[e.s] || []).push(e);
+  });
+  return Object.keys(by)
+    .map(function (si) {
+      return rowsTable(by[si], a);
+    })
+    .join('');
+}
+
+/* open / close the panel (the grey layer behind it is #dim) */
+function openDrawer() {
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('dim').classList.add('open');
+}
+
+function closeDrawer() {
+  S.detail = null;
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('dim').classList.remove('open');
+}
+</script>
