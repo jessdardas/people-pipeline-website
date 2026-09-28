@@ -42,10 +42,11 @@ function refresh() {
   load({ force: true, reason: 'manual' });
 }
 
-// every hour: read the Excel file again (the time at the top changes even when nothing changed)
-setInterval(function () {
-  if (!S.busy) load({ force: true, reason: 'auto' });
-}, 60 * 60 * 1000);
+// every 10m : read the Excel file again (the time at the top changes even when nothing changed)
+// Check for new data every 10 minutes
+setInterval(() => {
+  window.location.reload();
+}, 10 * 60 * 1000);
 
 // every 10 minutes: if a new file was uploaded in the meantime, load it straight away
 setInterval(function () {

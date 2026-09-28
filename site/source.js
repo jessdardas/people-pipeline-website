@@ -61,8 +61,14 @@ function siteRefreshed() {
     })
     .then(function (buf) {
       if (!buf) return '';
+
       var b = new Uint8Array(buf),
-        enc = b[0] === 0xff && b[1] === 0xfe ? 'utf-16le' : b[0] === 0xfe && b[1] === 0xff ? 'utf-16be' : 'utf-8'; // Notepad "Unicode" = UTF-16
+        enc = b[0] === 0xff && b[1] === 0xfe
+          ? 'utf-16le'
+          : b[0] === 0xfe && b[1] === 0xff
+            ? 'utf-16be'
+            : 'utf-8';
+
       var lines = new TextDecoder(enc)
         .decode(buf)
         .replace(/^\uFEFF/, '')
@@ -71,11 +77,30 @@ function siteRefreshed() {
           return x.trim();
         })
         .filter(Boolean);
-      // from the bottom up: the last line that has a date, and the last date on that line
+
+      // From the bottom up: find the last line containing a date
       for (var i = lines.length - 1; i >= 0; i--) {
         var m = lines[i].match(LOG_DATE);
-        if (m) return m[m.length - 1].trim();
+
+        if (m) {
+          var rawDate = m[m.length - 1].trim();
+          var date = new Date(rawDate);
+
+          if (!isNaN(date.getTime())) {
+            return 'Last updated at ' + date.toLocaleDateString('en-GB', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric'
+            }) + ' at ' + date.toLocaleTimeString('en-GB', {
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+          }
+
+          return rawDate;
+        }
       }
+
       return '';
     })
     .catch(function () {
