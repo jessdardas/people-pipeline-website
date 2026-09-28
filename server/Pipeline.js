@@ -36,11 +36,14 @@ function toSerial_(v) {
   if (/^\d+(\.\d+)?$/.test(s)) return Number(s);
   let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?/); // 2026-07-10 (14:30)
   if (!m) {
-    const d = s.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})(?:[ T](\d{1,2}):(\d{2}))?/); // 10/07/2026 = day/month/year
-    if (d) m = [d[0], d[3], d[2], d[1], d[4], d[5]];
+    const d = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})(?:[ T](\d{1,2}):(\d{2}))?/); // 10/07/2026 = day/month/year
+    if (d) m = +d[2] > 12 && +d[1] <= 12 ? [d[0], d[3], d[1], d[2], d[4], d[5]] : [d[0], d[3], d[2], d[1], d[4], d[5]]; // 9/28/2025 = month/day
   }
   if (!m) return null;
-  const ms = Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0));
+  let hr = +(m[4] || 0);
+  const ap = /\b(am|pm)\s*$/i.exec(s); // 12:00:00 AM = midnight, 1:30 PM = 13:30
+  if (ap && m[4]) hr = (hr % 12) + (/pm/i.test(ap[1]) ? 12 : 0);
+  const ms = Date.UTC(+m[1], +m[2] - 1, +m[3], hr, +(m[5] || 0));
   return isNaN(ms) ? null : ms / 864e5 + 25569;
 }
 
