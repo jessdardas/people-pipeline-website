@@ -78,7 +78,7 @@ var PROJECT_EXCLUDE = [
 var INTERNAL_KINDS = ['inn', 'test', 'ico']; // the "Internal / test" column on map 01
 
 // Project date used when an account's "last project" date is empty (first column found, in this order).
-var PROJECT_DATE_COLS = [/datein/, /actualclosedate|close$/, /createdon|creation/, /date/];
+var PROJECT_DATE_COLS = [/datein/, /actualclosedate/];
 // --- app state (what is selected right now) - changed by the app, not by hand ---
 // units/pipes = selected service units / pipelines (empty = all),
 // view = which map tab (1-4), F / SF = filters, g = the account table (sort, column filters, search).
