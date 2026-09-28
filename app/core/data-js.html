@@ -236,22 +236,27 @@ function projFlag(p, e) {
   return !/^(|no|n|false|0|-|none)$/i.test(String(v).trim());
 }
 
-/** The project's date (PROJECT_DATE_COLS), as an Excel date number, or null. */
+/** The project's date, as an Excel date number, or null. */
 function projDate(p) {
   var s = S.sheets[p.s];
-  if (s._dc === undefined) {
-    s._dc = -1;
-    for (var r = 0; r < PROJECT_DATE_COLS.length && s._dc < 0; r++)
-      for (var i = 0; i < s.hk.length; i++)
-        if (PROJECT_DATE_COLS[r].test(s.hk[i]) && !/^validat/.test(s.hk[i])) {
-          s._dc = i;
-          break;
-        }
-  }
-  var v = s._dc < 0 ? null : num(cv(p.s, s._dc, p.j));
-  return v != null && v > NEVER ? v : null;
-}
 
+  for (var r = 0; r < PROJECT_DATE_COLS.length; r++) {
+    for (var i = 0; i < s.hk.length; i++) {
+      if (PROJECT_DATE_COLS[r].test(s.hk[i]) && !/^validat/.test(s.hk[i])) {
+        var v = num(cv(p.s, i, p.j));
+
+        if (v != null && v > NEVER) {
+          return v;
+        }
+
+        // This column exists but is empty/invalid → try the next date column
+        break;
+      }
+    }
+  }
+
+  return null;
+}
 function latestDate(list) {
   var m = null;
   list.forEach(function (o) {
