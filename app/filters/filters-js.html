@@ -88,8 +88,13 @@ function inDb(a) {
   return a.validDate != null && a.validDate >= newDbSerial();
 }
 
+/** The New DB date: the one picked for this view (S.dbFrom, not saved) or else the admin date (saved for everyone). */
+function newDbFrom() {
+  return S.dbFrom || S.settings.newDbFrom || '';
+}
+
 function newDbSerial() {
-  var m = String(S.settings.newDbFrom || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  var m = String(newDbFrom()).match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) / 864e5 + 25569 : 0;
 }
 

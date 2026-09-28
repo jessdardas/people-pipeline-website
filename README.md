@@ -41,7 +41,7 @@ Without steps 3–4 the site still works; only saving the New DB date doesn't (i
 2. **Task Scheduler** → *Create Task* → Triggers: *Daily*, repeat every **1 hour** → Actions: *Start a program*
    `powershell.exe` with arguments `-ExecutionPolicy Bypass -File "C:\inetpub\people-pipeline\tools\copy-excel.ps1"`.
 
-The script also copies the **"last refreshed" notepad** (a `.txt` with *refresh* in its name, in the same folder as the Excel file) to `data\last refreshed.txt`. The top of the page shows its first line as written ("Last refreshed **28/09/2026 10:00**"); without that file it shows when the Excel file last changed.
+**Last updated at** (top of the page) is the last date written in `data\refresh-log.txt` (`C:\inetpub\people-pipeline\data\refresh-log.txt`), shown as written. Without that file it shows when the Excel file last changed.
 
 Open pages read the files again every hour (and within 10 minutes of a new upload). There is no refresh button.
 
@@ -49,11 +49,11 @@ Open pages read the files again every hour (and within 10 minutes of a new uploa
 
 These are only in the website's `app\` (not in the Apps Script project):
 
-- **Map 01 · I.N. column**: open projects whose project name (or account name) has *I.N.*, *test* or *intercompany* go in the **I.N.** column instead of their phase column (`IN_NAME` in `app\core\config-js.html`).
-- **Map 01 · "All projects ▾" menu** (next to the pipelines): tick *I.N. projects*, *Remove from pipeline* and/or *No P2* to take those projects off the map. An account whose open projects are all taken off leaves the map, so the totals go down. The two columns are found in the projects sheet by name (*remove … pipeline*, *no p2*); a cell counts when it is filled in and not *no* / *false* / *0* (`PROJECT_EXCLUDE` in `app\core\config-js.html`).
-- **Account table**: *Phase* is hidden by default, like *Industry* (show it again with **Columns**).
-- **Account details**: click any column title in the tables (projects, contact persons, social media…) to sort A→Z / low→high, click again for Z→A / high→low.
-- **Last refreshed** comes from the notepad (see above); no ↻ button.
+- **"Real projects only"** – a small switch above maps 01 and 02, **on** by default. It leaves out *I.N.*, *test* and *intercompany* projects (by project or account name), and projects marked *no P2* or *excluded from pipeline* (columns in the projects sheet). The small **▾** next to it picks which of the 5 kinds are left out (e.g. untick *Test* to see the tests). An account whose projects are all left out leaves the map, so the totals go down. Switch it off to see everything. On map 01, the I.N. / test / intercompany projects that are shown go in the **Internal / test** column. Settings: `PROJECT_EXCLUDE` in `app\core\config-js.html`.
+- **Last project**: when the file has no last-project date for an account, the latest date of its own projects is used (map 02 and the details panel, which then says *from its projects*). The project date column is the first one found by `PROJECT_DATE_COLS` in `app\core\config-js.html`.
+- **New DB**: with New DB on, a small date box next to *validated on or after* changes the date for your view only; nothing is saved (*reset* goes back to the admin date).
+- **Account table**: *Last contact* next to *Last meeting*; *Phase* and *Industry* hidden by default (show them with **Columns**).
+- **Account details**: the project table shows *Project name*, *Phase* and *Status*; **+ columns** adds others (remembered in your browser). Click a column title in any table to sort, click again to reverse.
 
 ## Updating the website after changing the app
 

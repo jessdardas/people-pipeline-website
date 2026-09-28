@@ -163,4 +163,41 @@
 .det .tb th.down::after {
   content: ' ↓';
 }
+/* "+ columns" above the project table (rowsTable() in details/details-js) */
+.dcols {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 0 4px;
+}
+.dcols .lnk {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.dcols-m {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 5;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  padding: 6px 4px;
+  min-width: 190px;
+  max-height: 260px;
+  overflow: auto;
+}
+.dcols-m.open {
+  display: block;
+}
+.dcols-m label {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
 </style>

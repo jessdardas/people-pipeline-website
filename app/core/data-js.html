@@ -145,17 +145,29 @@ function build(d) {
         else a.lists.push({ s: +si, j: j });
       });
     });
-    // map 01: the account's OPEN projects (see OPEN_STATUS / IN_NAME / PROJECT_EXCLUDE in core/config-js)
-    var accIn = IN_NAME.test(a.name);
-    a.open = a.projects.filter(isOpenProject).map(function (p) {
-      var ph = phaseKey(cellBy(p.s, p.j, 'Phase_Group'));
-      return {
-        ph: PHASES.indexOf(ph) >= 0 ? ph : 'nophase',
-        inn: accIn || IN_NAME.test(String(projName(p))),
-        rfp: projFlag(p, 'rfp'),
-        nop2: projFlag(p, 'nop2')
-      };
+    // every project with its kind flags (PROJECT_EXCLUDE), phase, open or not and date - used by maps 01 + 02
+    a.pj = a.projects.map(function (p) {
+      var ph = phaseKey(cellBy(p.s, p.j, 'Phase_Group')),
+        nm = String(projName(p)),
+        o = { ph: PHASES.indexOf(ph) >= 0 ? ph : 'nophase', open: isOpenProject(p), date: projDate(p) };
+      PROJECT_EXCLUDE.forEach(function (e) {
+        o[e.k] = e.name ? e.name.test(nm) || e.name.test(a.name) : projFlag(p, e);
+      });
+      return o;
     });
+    a.open = a.pj.filter(function (o) {
+      return o.open;
+    });
+    // "last project" empty in the file: take the latest date of the account's own projects
+    a.lpFromProj = false;
+    if (a.lpDate == null) {
+      var lp2 = latestDate(a.pj);
+      if (lp2 != null) {
+        a.lpDate = lp2;
+        a.lastProject = Math.max(0, Math.round(todaySerial() - lp2));
+        a.lpFromProj = true;
+      }
+    }
     a.projPhases = uniq(
       a.projects
         .map(function (p) {
@@ -209,15 +221,12 @@ function build(d) {
   buildSocialFilters();
 }
 
-/** Is the project marked in one of the PROJECT_EXCLUDE columns (k = 'rfp' / 'nop2')? */
-function projFlag(p, k) {
-  var x = PROJECT_EXCLUDE.filter(function (e) {
-      return e.k === k;
-    })[0],
-    hk = S.sheets[p.s].hk,
+/** Is the project marked in the PROJECT_EXCLUDE column of kind e? */
+function projFlag(p, e) {
+  var hk = S.sheets[p.s].hk,
     c = -1;
-  for (var i = 0; x && x.col && i < hk.length; i++)
-    if (x.col.test(hk[i])) {
+  for (var i = 0; i < hk.length; i++)
+    if (e.col.test(hk[i])) {
       c = i;
       break;
     }
@@ -227,13 +236,62 @@ function projFlag(p, k) {
   return !/^(|no|n|false|0|-|none)$/i.test(String(v).trim());
 }
 
-/** Map 01: the open projects left after the "Remove projects" menu. */
-function keptOpen(a) {
-  return a.open.filter(function (o) {
-    return !PROJECT_EXCLUDE.some(function (e) {
-      return S.px[e.k] && o[e.k];
-    });
+/** The project's date (PROJECT_DATE_COLS), as an Excel date number, or null. */
+function projDate(p) {
+  var s = S.sheets[p.s];
+  if (s._dc === undefined) {
+    s._dc = -1;
+    for (var r = 0; r < PROJECT_DATE_COLS.length && s._dc < 0; r++)
+      for (var i = 0; i < s.hk.length; i++)
+        if (PROJECT_DATE_COLS[r].test(s.hk[i]) && !/^validat/.test(s.hk[i])) {
+          s._dc = i;
+          break;
+        }
+  }
+  var v = s._dc < 0 ? null : num(cv(p.s, s._dc, p.j));
+  return v != null && v > NEVER ? v : null;
+}
+
+function latestDate(list) {
+  var m = null;
+  list.forEach(function (o) {
+    if (o.date != null && (m == null || o.date > m)) m = o.date;
   });
+  return m;
+}
+
+/** Is this project left out by the "Real projects only" switch? */
+function leftOut(o) {
+  return (
+    S.clean &&
+    PROJECT_EXCLUDE.some(function (e) {
+      return S.px[e.k] && o[e.k];
+    })
+  );
+}
+
+/** Projects (all, or only the open ones) that are kept by the "Real projects only" switch. */
+function keptProjects(a, openOnly) {
+  return (openOnly ? a.open : a.pj).filter(function (o) {
+    return !leftOut(o);
+  });
+}
+
+function keptOpen(a) {
+  return keptProjects(a, true);
+}
+
+function isInternal(o) {
+  return INTERNAL_KINDS.some(function (k) {
+    return o[k];
+  });
+}
+
+/** Map 02: days since the last project. From the file; when it was empty there, from the kept projects' dates. */
+function lastProjectDays(a) {
+  if (!a.lpFromProj) return a.lastProject;
+  var d = latestDate(keptProjects(a, false));
+  return d == null ? null : Math.max(0, Math.round(todaySerial() - d));
 }
 
 /** Is this project open? (status column statecodename / status / state; no such column = open) */

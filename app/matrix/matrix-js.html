@@ -1,5 +1,70 @@
 <script>
 /* Draws the matrix for the current view */
+/** Small "Real projects only" switch above maps 01 + 02 (ON = I.N., test, intercompany, no P2 and
+ *  excluded-from-pipeline projects are left out; ▾ = pick which kinds). See PROJECT_EXCLUDE in core/config-js. */
+function cleanHtml() {
+  if (S.view > 2) return '';
+  var n = {};
+  S.acc.forEach(function (a) {
+    if (a.cls !== (S.view === 1 ? 'current pipeline' : 'past client') || !pass(a)) return;
+    var list = S.view === 1 ? a.open : a.pj;
+    PROJECT_EXCLUDE.forEach(function (e) {
+      if (list.some(function (o) {
+        return o[e.k];
+      }))
+        n[e.k] = (n[e.k] || 0) + 1;
+    });
+  });
+  var h =
+    '<span class="rp"><label class="sw" title="Leave out ' +
+    esc(
+      PROJECT_EXCLUDE.filter(function (e) {
+        return S.px[e.k];
+      })
+        .map(function (e) {
+          return e.t;
+        })
+        .join(', ') || 'nothing'
+    ) +
+    ' projects"><input type="checkbox" ' +
+    (S.clean ? 'checked' : '') +
+    ' onchange="setClean(this.checked)"><i></i>Real projects only</label><button class="rp-b" onclick="S.xm=!S.xm;render()" title="Choose what is left out">▾</button>';
+  if (S.xm)
+    h +=
+      '<div class="rp-m"><div class="rp-h">Leave out these projects</div>' +
+      PROJECT_EXCLUDE.map(function (e, i) {
+        return (
+          '<label><input type="checkbox" ' +
+          (S.px[e.k] ? 'checked' : '') +
+          (S.clean ? '' : ' disabled') +
+          ' onchange="setKind(' +
+          i +
+          ')">' +
+          esc(e.t) +
+          '<small>' +
+          (n[e.k] || 0) +
+          '</small></label>'
+        );
+      }).join('') +
+      '</div>';
+  return h + '</span>';
+}
+
+function setClean(on) {
+  S.clean = on;
+  changed();
+}
+
+/** Tick / untick one kind of project in the ▾ menu (the menu stays open). */
+function setKind(i) {
+  var k = PROJECT_EXCLUDE[i].k;
+  if (S.px[k]) delete S.px[k];
+  else S.px[k] = 1;
+  changed();
+  S.xm = true;
+  render();
+}
+
 function scopeText() {
   var u = S.units.length ? S.units.map(unitLabel).join(', ') : 'All service units';
   var p = S.pipes.length
@@ -21,20 +86,21 @@ function scopeText() {
           })
           .join(', ')
     );
-  if (S.view === 1) {
-    // pipelines and removed projects only apply to map 01
-    parts.push(p);
-    var ex = PROJECT_EXCLUDE.filter(function (e) {
-      return S.px[e.k];
+  if (S.view === 1) parts.push(p); // pipelines only apply to map 01
+  if (S.view <= 2) {
+    // "Real projects only": only mentioned when it is not the standard (everything left out)
+    var shown = PROJECT_EXCLUDE.filter(function (e) {
+      return !S.clean || !S.px[e.k];
     });
-    if (ex.length)
+    if (shown.length)
       parts.push(
-        'Without ' +
-          ex
+        'incl. ' +
+          shown
             .map(function (e) {
               return e.t;
             })
-            .join(', ')
+            .join(', ') +
+          ' projects'
       );
   }
   return parts.filter(Boolean).join(' · ');
@@ -98,6 +164,7 @@ function render() {
     (ft ? ' · ' + esc(ft) : '') +
     '</div></div>' +
     '<div class="hright">' +
+    cleanHtml() +
     '<label class="multi" title="Tick, then click several boxes (or row / column titles) to list their accounts together"><input type="checkbox" ' +
     (S.multiCell ? 'checked' : '') +
     ' onchange="S.multiCell=this.checked">select several boxes</label></div>' +

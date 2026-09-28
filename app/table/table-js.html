@@ -100,6 +100,19 @@ var TCOLS = [
     }
   },
   {
+    k: 'lc',
+    t: 'Last contact',
+    g: function (a) {
+      return a.lcDate ? dateAgo(a.lcDate, false, a.lastContact) : '';
+    },
+    s: function (a) {
+      return a.lastContact == null ? 1e9 : a.lastContact;
+    },
+    fv: function (a) {
+      return lmBucket(a.lastContact);
+    }
+  },
+  {
     k: 'valid',
     t: 'Last validated',
     g: function (a) {
@@ -482,8 +495,12 @@ function orderedCols() {
   var keys = TCFG.order.filter(function (k) {
     return colDef(k);
   });
-  TCOLS.forEach(function (c) {
-    if (keys.indexOf(c.k) < 0) keys.push(c.k);
+  // a column that is new since the order was saved goes right after the column before it in TCOLS
+  TCOLS.forEach(function (c, i) {
+    if (keys.indexOf(c.k) >= 0) return;
+    var at = i ? keys.indexOf(TCOLS[i - 1].k) : -1;
+    if (at < 0) keys.push(c.k);
+    else keys.splice(at + 1, 0, c.k);
   });
   return keys.map(function (k) {
     var c = colDef(k);

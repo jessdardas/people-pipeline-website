@@ -2,15 +2,15 @@
  * PEOPLE PIPELINE - the website's data connection (replaces Google Apps Script).
  * - the data:     data/people pipeline.xlsx on this IIS server, read in the browser with SheetJS and
  *                 turned into the page's data by server/Pipeline.js (the same code as in Apps Script)
- * - "Last refreshed": the first line of data/last refreshed.txt (the notepad next to the Excel file;
- *                 tools/copy-excel.ps1 copies it too); without that file, the time the Excel file changed
+ * - "Last updated at": the LAST date written in data/refresh-log.txt (C:\inetpub\people-pipeline\data\refresh-log.txt);
+ *                 without that file, the time the Excel file last changed
  * - the settings: api/settings.ashx (saves the New DB date for everyone, checks the admin password);
  *                 if that handler is missing, data/settings.json is only read
  * Loaded after the app's code and before it starts, so the api() below replaces the Apps Script one.
  */
 var SITE = {
   file: 'data/people pipeline.xlsx', // the Excel file (the copy task / export puts it here)
-  refreshFile: 'data/last refreshed.txt', // the notepad with the "last refreshed" date, shown as it is written
+  refreshFile: 'data/refresh-log.txt', // the refresh log: its last date is shown as "Last updated at", as written
   settingsApi: 'api/settings.ashx',
   settingsFile: 'data/settings.json',
   last: null // hash of the last data read
@@ -50,7 +50,10 @@ function siteRead() {
   });
 }
 
-/** The "last refreshed" text: first filled-in line of the notepad ('' when there is no such file). */
+// a date (+ time) as people / scripts write it: 28/09/2026 10:00, 2026-09-28T10:00:05, 28-09-2026 10:00 AM, 28 Sep 2026 10:00
+var LOG_DATE = /\d{4}-\d{1,2}-\d{1,2}(?:[ T]+\d{1,2}:\d{2}(?::\d{2})?)?|\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4}(?:[ ,]+\d{1,2}:\d{2}(?::\d{2})?(?:\s?[AaPp][Mm])?)?|\d{1,2} [A-Za-z]{3,9}\.? \d{4}(?:[ ,]+\d{1,2}:\d{2}(?::\d{2})?)?/g;
+
+/** "Last updated at": the last date written in the refresh log ('' when there is no such file / no date in it). */
 function siteRefreshed() {
   return fetch(encodeURI(SITE.refreshFile) + '?t=' + Date.now(), { cache: 'no-store' })
     .then(function (r) {
@@ -60,16 +63,20 @@ function siteRefreshed() {
       if (!buf) return '';
       var b = new Uint8Array(buf),
         enc = b[0] === 0xff && b[1] === 0xfe ? 'utf-16le' : b[0] === 0xfe && b[1] === 0xff ? 'utf-16be' : 'utf-8'; // Notepad "Unicode" = UTF-16
-      var line = new TextDecoder(enc)
+      var lines = new TextDecoder(enc)
         .decode(buf)
         .replace(/^\uFEFF/, '')
         .split(/\r?\n/)
         .map(function (x) {
           return x.trim();
         })
-        .filter(Boolean)[0];
-      // "Last refreshed: 28/09/2026 10:00" -> "28/09/2026 10:00"
-      return (line || '').replace(/^last\s*refresh(ed)?\s*(at|on)?\s*[:=\-]?\s*/i, '').slice(0, 80);
+        .filter(Boolean);
+      // from the bottom up: the last line that has a date, and the last date on that line
+      for (var i = lines.length - 1; i >= 0; i--) {
+        var m = lines[i].match(LOG_DATE);
+        if (m) return m[m.length - 1].trim();
+      }
+      return '';
     })
     .catch(function () {
       return '';

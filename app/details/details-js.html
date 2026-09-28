@@ -78,6 +78,35 @@ function nameCol(s) {
   return s._nc;
 }
 
+// project table in the details: always name + these columns (phase, status); others via "+ columns"
+var DET_PROJ_BASE = /^(phasegroup|phase|statecodename|status)$/;
+var DET_PROJ_KEY = 'pp_detail_project_columns';
+
+function detProjCols() {
+  try {
+    return JSON.parse(localStorage.getItem(DET_PROJ_KEY) || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+/** Add / remove a column of the project table in the details (k = column name, letters only). */
+function detProjCol(k) {
+  var l = detProjCols(),
+    i = l.indexOf(k);
+  if (i >= 0) l.splice(i, 1);
+  else l.push(k);
+  try {
+    localStorage.setItem(DET_PROJ_KEY, JSON.stringify(l));
+  } catch (e) {}
+  var b = document.getElementById('aBody'),
+    top = b.scrollTop;
+  if (S.detail && S.byId[S.detail]) openDetail(S.byId[S.detail].i);
+  b.scrollTop = top;
+  var m = b.querySelector('.dcols-m');
+  if (m) m.classList.add('open');
+}
+
 function projName(e) {
   var s = S.sheets[e.s],
     c = nameCol(s);
@@ -107,7 +136,36 @@ function rowsTable(entries, a) {
   cols.sort(function (x, y) {
     return (x === nc ? -1 : 0) - (y === nc ? -1 : 0);
   });
+  var pick = '';
+  if (s.role === 'projects') {
+    // projects: name, phase and status; the small "+ columns" button adds others (remembered in this browser)
+    var all = cols.slice(),
+      extra = detProjCols();
+    cols = all.filter(function (i) {
+      return i === nc || DET_PROJ_BASE.test(s.hk[i]) || extra.indexOf(s.hk[i]) >= 0;
+    });
+    pick =
+      '<div class="dcols"><button class="lnk" onclick="this.nextSibling.classList.toggle(\'open\')">+ columns</button><div class="dcols-m">' +
+      all
+        .filter(function (i) {
+          return i !== nc && !DET_PROJ_BASE.test(s.hk[i]);
+        })
+        .map(function (i) {
+          return (
+            '<label><input type="checkbox" ' +
+            (extra.indexOf(s.hk[i]) >= 0 ? 'checked' : '') +
+            ' onchange="detProjCol(\'' +
+            esc(s.hk[i]) +
+            '\')">' +
+            esc(pretty(s.cols[i].h)) +
+            '</label>'
+          );
+        })
+        .join('') +
+      '</div></div>';
+  }
   var h =
+    pick +
     '<div class="tw"><table class="tb"><thead><tr><th class="cnt">#</th>' +
     cols
       .map(function (i) {
@@ -199,7 +257,7 @@ function openDetail(i) {
     ['Met in', cap(a.metIn)],
     ['Last meeting', a.lmDate ? dateAgo(a.lmDate, false, a.lastMeeting) : 'never'],
     ['Last contact', a.lcDate ? dateAgo(a.lcDate, false, a.lastContact) : 'never'],
-    ['Last project', a.lpDate ? dateAgo(a.lpDate, false, a.lastProject) : 'never'],
+    ['Last project', a.lpDate ? dateAgo(a.lpDate, false, a.lastProject) + (a.lpFromProj ? ' (from its projects)' : '') : 'never'],
     ['Pipeline', a.pipe ? PIPES[a.pipe - 1].t + ' — ' + PIPES[a.pipe - 1].s : '—'],
     ['Pre-P1 projects', a.preN],
     ['Post-P1 projects', a.postN],

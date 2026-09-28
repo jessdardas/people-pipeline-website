@@ -254,4 +254,89 @@ table.grid {
   color: var(--text-soft);
   font-size: 0.8em;
 }
+/* small "Real projects only" switch above maps 01 + 02 (cleanHtml() in matrix/matrix-js) - kept quiet on purpose */
+.rp {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 14px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.rp .sw {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+.rp .sw input {
+  display: none;
+}
+.rp .sw i {
+  width: 20px;
+  height: 11px;
+  border-radius: 6px;
+  background: var(--line);
+  position: relative;
+  transition: background 0.15s;
+}
+.rp .sw i::after {
+  content: '';
+  position: absolute;
+  left: 1px;
+  top: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left 0.15s;
+}
+.rp .sw input:checked + i {
+  background: var(--text-faint);
+}
+.rp .sw input:checked + i::after {
+  left: 10px;
+}
+.rp-b {
+  font-size: 9px;
+  color: var(--text-faint);
+  padding: 2px 4px;
+}
+.rp-m {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 40;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  padding: 6px 4px;
+  min-width: 190px;
+  text-align: left;
+}
+.rp-h {
+  padding: 2px 8px 5px;
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+.rp-m label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text-soft);
+  cursor: pointer;
+  border-radius: 5px;
+}
+.rp-m label:hover {
+  background: var(--soft);
+}
+.rp-m small {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: 10.5px;
+}
 </style>

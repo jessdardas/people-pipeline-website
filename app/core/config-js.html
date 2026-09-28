@@ -65,16 +65,21 @@ var PRJ_LABELS = ['None', '1', '2–5', '6–10', '11+'];
 // status column counts every project as open.
 var OPEN_STATUS = /^open$/i;
 
-// Map 01 "I.N." column: open projects whose project name (or account name) has one of these words.
-var IN_NAME = /(^|[^a-z0-9])i\.\s?n(\.|(?![a-z0-9]))|\btest\b|inter-?\s?company/i;
-
-// Map 01 "Remove projects" filter (next to the pipelines). col = the project sheet column (letters only,
-// lower case) holding the flag; a flag counts when it is filled in and not "no" / "false" / "0".
+// "Real projects only" (small switch above maps 01 and 02, ON by default): these kinds of projects are left out.
+// name = matched in the project name (or the account name); col = the project sheet column (letters only, lower
+// case) with the flag - a flag counts when it is filled in and not "no" / "false" / "0".
+// On map 01, the I.N. / test / intercompany projects that are NOT left out go in the "Internal / test" column.
 var PROJECT_EXCLUDE = [
-  { k: 'inn', t: 'I.N. projects', s: 'name has I.N., test or intercompany' },
-  { k: 'rfp', t: 'Remove from pipeline', s: 'marked in the "remove from pipeline" column', col: /remove.*pipeline/ },
-  { k: 'nop2', t: 'No P2', s: 'marked in the "no p2" column', col: /^nop2/ }
+  { k: 'inn', t: 'I.N.', name: /(^|[^a-z0-9])i\.\s?n(\.|(?![a-z0-9]))/i },
+  { k: 'test', t: 'Test', name: /\btest(s|ing)?\b/i },
+  { k: 'ico', t: 'Intercompany', name: /inter-?\s?company/i },
+  { k: 'nop2', t: 'No P2', col: /^nop2/ },
+  { k: 'rfp', t: 'Excluded from pipeline', col: /(remove|exclude).*pipeline/ }
 ];
+var INTERNAL_KINDS = ['inn', 'test', 'ico']; // the "Internal / test" column on map 01
+
+// Project date used when an account's "last project" date is empty (first column found, in this order).
+var PROJECT_DATE_COLS = [/datein/, /createdon|creation/, /closedate|close$/, /date/];
 
 // --- app state (what is selected right now) - changed by the app, not by hand ---
 // units/pipes = selected service units / pipelines (empty = all),
@@ -87,8 +92,10 @@ var S = {
   checked: 0,
   units: [],
   pipes: [],
-  px: {}, // map 01: project kinds removed with the "Remove projects" menu (k of PROJECT_EXCLUDE = 1)
-  xm: false, // that menu is open
+  clean: true, // "Real projects only" switch (maps 01 + 02)
+  px: { inn: 1, test: 1, ico: 1, nop2: 1, rfp: 1 }, // which PROJECT_EXCLUDE kinds that switch leaves out
+  xm: false, // its small menu is open
+  dbFrom: '', // New DB: a date picked for this view only (not saved); '' = the admin date
   view: 1,
   db: 'pipeline', // 'pipeline' = everything, 'newdb' = only accounts validated on or after settings.newDbFrom
   settings: { newDbFrom: '2026-07-01' }, // shared settings from the server (admin panel)
