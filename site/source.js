@@ -87,7 +87,7 @@ function siteRefreshed() {
           var date = new Date(rawDate);
 
           if (!isNaN(date.getTime())) {
-            return 'Last updated at ' + date.toLocaleDateString('en-GB', {
+            return '' + date.toLocaleDateString('en-GB', {
               day: 'numeric',
               month: 'long',
               year: 'numeric'
