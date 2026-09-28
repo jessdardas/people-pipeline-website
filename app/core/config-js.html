@@ -71,7 +71,6 @@ var OPEN_STATUS = /^open$/i;
 // On map 01, the I.N. / test / intercompany projects that are NOT left out go in the "Internal / test" column.
 var PROJECT_EXCLUDE = [
   { k: 'inn', t: 'I.N.', name: /(^|[^a-z0-9])i\.\s?n(\.|(?![a-z0-9]))/i },
-  { k: 'test', t: 'Test', name: /\btest(s|ing)?\b/i },
   { k: 'ico', t: 'Intercompany', name: /inter-?\s?company/i },
   { k: 'nop2', t: 'No P2', col: /^nop2/ },
   { k: 'rfp', t: 'Excluded from pipeline', col: /(remove|exclude).*pipeline/ }
@@ -93,7 +92,7 @@ var S = {
   units: [],
   pipes: [],
   clean: true, // "Real projects only" switch (maps 01 + 02)
-  px: { inn: 1, test: 1, ico: 1, nop2: 1, rfp: 1 }, // which PROJECT_EXCLUDE kinds that switch leaves out
+  px: { inn: 1, ico: 1, nop2: 1, rfp: 1 }, // which PROJECT_EXCLUDE kinds that switch leaves out
   xm: false, // its small menu is open
   dbFrom: '', // New DB: a date picked for this view only (not saved); '' = the admin date
   view: 1,
