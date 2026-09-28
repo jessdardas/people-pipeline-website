@@ -1,16 +1,16 @@
 <script>
 /* Refresh info, service unit buttons, pipeline menu, tabs */
-/** "Last refreshed 14:05" = when the data was last read from the Excel file (↻ = read it again now). */
+/** "Last refreshed …" = the date written in the "last refreshed" text file next to the Excel file
+ *  (else the time the Excel file was last changed). The page reloads the data by itself every hour. */
 function renderRefresh() {
-  var s = S.source;
-  document.getElementById('rf').innerHTML = s.updated
+  var s = S.source,
+    when = s.refreshed || (s.updated ? fmtTs(s.updated) : '');
+  document.getElementById('rf').innerHTML = when
     ? '<span title="' +
-      esc((s.name || '') + ' · file last changed ' + fmtTs(s.updated) + ' · refreshes automatically every hour') +
+      esc((s.name || '') + ' · file last changed ' + fmtTs(s.updated) + ' · reloads automatically every hour') +
       '">Last refreshed <b>' +
-      esc(fmtTs(S.checked)) +
-      '</b></span><button onclick="refresh()" title="Refresh now">' +
-      (S.busy ? '…' : '↻') +
-      '</button>'
+      esc(when) +
+      '</b></span>'
     : S.busy
       ? 'Loading…'
       : '';
@@ -143,7 +143,7 @@ function renderUnits() {
         })
         .join(' + ')
     : 'All pipelines';
-  var p = '<button class="pbtn" onclick="S.pm=!S.pm;renderUnits()">' + esc(lbl) + ' <i>▾</i></button>';
+  var p = '<button class="pbtn" onclick="S.pm=!S.pm;S.xm=false;renderUnits()">' + esc(lbl) + ' <i>▾</i></button>';
   if (S.pm)
     p +=
       '<div class="pmenu">' +
@@ -161,8 +161,9 @@ function renderUnits() {
         );
       }).join('') +
       '<div class="pm-f"><button class="lnk" onclick="setPipe(null)">All pipelines</button><button class="lnk" onclick="S.pm=false;renderUnits()">Close</button></div></div>';
-  // pipelines only apply to map 01 (the other maps always show every pipeline)
-  document.getElementById('pipes').innerHTML = S.view === 1 ? p : '';
+  // pipelines and "Remove projects" only apply to map 01 (the other maps always show everything)
+  document.getElementById('pipes').innerHTML =
+    S.view === 1 ? '<span class="pw">' + exclHtml() + '</span><span class="pw">' + p + '</span>' : '';
 
   document.getElementById('tabs').innerHTML =
     [1, 2, 3]
@@ -183,6 +184,66 @@ function renderUnits() {
     '<button class="far ' +
     (S.view === 4 ? 'on' : '') +
     '" onclick="setView(4)">All accounts</button>';
+}
+
+/** Map 01 "Remove projects" menu: tick a kind of project to take it out of the map and its totals. */
+function exclHtml() {
+  var n = {};
+  S.acc.forEach(function (a) {
+    if (a.cls !== 'current pipeline' || !pass(a)) return;
+    PROJECT_EXCLUDE.forEach(function (e) {
+      if (a.open.some(function (o) {
+        return o[e.k];
+      }))
+        n[e.k] = (n[e.k] || 0) + 1;
+    });
+  });
+  var on = PROJECT_EXCLUDE.filter(function (e) {
+    return S.px[e.k];
+  });
+  var lbl = on.length
+    ? 'Without ' +
+      on
+        .map(function (e) {
+          return e.t;
+        })
+        .join(', ')
+    : 'All projects';
+  var h = '<button class="pbtn' + (on.length ? ' act' : '') + '" onclick="S.xm=!S.xm;S.pm=false;renderUnits()">' + esc(lbl) + ' <i>▾</i></button>';
+  if (S.xm)
+    h +=
+      '<div class="pmenu"><div class="pm-h">Remove from map 01</div>' +
+      PROJECT_EXCLUDE.map(function (e, i) {
+        return (
+          '<label><input type="checkbox" ' +
+          (S.px[e.k] ? 'checked' : '') +
+          ' onchange="setExcl(' +
+          i +
+          ')"><span><b>' +
+          esc(e.t) +
+          '</b><small>' +
+          esc(e.s) +
+          ' · ' +
+          (n[e.k] || 0) +
+          ' accounts</small></span></label>'
+        );
+      }).join('') +
+      '<div class="pm-f"><button class="lnk" onclick="setExcl(null)">Keep all projects</button><button class="lnk" onclick="S.xm=false;renderUnits()">Close</button></div></div>';
+  return h;
+}
+
+/** Tick / untick a kind of project in the "Remove projects" menu (i = position in PROJECT_EXCLUDE, null = keep all). */
+function setExcl(i) {
+  if (i === null) S.px = {};
+  else {
+    var k = PROJECT_EXCLUDE[i].k;
+    if (S.px[k]) delete S.px[k];
+    else S.px[k] = 1;
+  }
+  var keep = S.xm;
+  changed();
+  S.xm = keep; // leave the menu open while ticking
+  renderUnits();
 }
 
 function setUnit(u) {
@@ -274,8 +335,8 @@ function renderAll() {
 
 // clicking anywhere else closes the pipeline menu
 document.addEventListener('mousedown', function (e) {
-  if (S.pm && !e.target.closest('.pipes')) {
-    S.pm = false;
+  if ((S.pm || S.xm) && !e.target.closest('.pipes')) {
+    S.pm = S.xm = false;
     renderUnits();
   }
 });

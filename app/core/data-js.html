@@ -145,15 +145,17 @@ function build(d) {
         else a.lists.push({ s: +si, j: j });
       });
     });
-    // map 01: the phases of the account's OPEN projects (each phase once), see OPEN_STATUS in core/config-js
-    a.openPhases = uniq(
-      a.projects
-        .filter(isOpenProject)
-        .map(function (p) {
-          var ph = phaseKey(cellBy(p.s, p.j, 'Phase_Group'));
-          return PHASES.indexOf(ph) >= 0 ? ph : 'nophase';
-        })
-    );
+    // map 01: the account's OPEN projects (see OPEN_STATUS / IN_NAME / PROJECT_EXCLUDE in core/config-js)
+    var accIn = IN_NAME.test(a.name);
+    a.open = a.projects.filter(isOpenProject).map(function (p) {
+      var ph = phaseKey(cellBy(p.s, p.j, 'Phase_Group'));
+      return {
+        ph: PHASES.indexOf(ph) >= 0 ? ph : 'nophase',
+        inn: accIn || IN_NAME.test(String(projName(p))),
+        rfp: projFlag(p, 'rfp'),
+        nop2: projFlag(p, 'nop2')
+      };
+    });
     a.projPhases = uniq(
       a.projects
         .map(function (p) {
@@ -205,6 +207,33 @@ function build(d) {
       .sort()
   );
   buildSocialFilters();
+}
+
+/** Is the project marked in one of the PROJECT_EXCLUDE columns (k = 'rfp' / 'nop2')? */
+function projFlag(p, k) {
+  var x = PROJECT_EXCLUDE.filter(function (e) {
+      return e.k === k;
+    })[0],
+    hk = S.sheets[p.s].hk,
+    c = -1;
+  for (var i = 0; x && x.col && i < hk.length; i++)
+    if (x.col.test(hk[i])) {
+      c = i;
+      break;
+    }
+  if (c < 0) return false;
+  var v = cv(p.s, c, p.j);
+  if (v == null || v === false || v === 0) return false;
+  return !/^(|no|n|false|0|-|none)$/i.test(String(v).trim());
+}
+
+/** Map 01: the open projects left after the "Remove projects" menu. */
+function keptOpen(a) {
+  return a.open.filter(function (o) {
+    return !PROJECT_EXCLUDE.some(function (e) {
+      return S.px[e.k] && o[e.k];
+    });
+  });
 }
 
 /** Is this project open? (status column statecodename / status / state; no such column = open) */

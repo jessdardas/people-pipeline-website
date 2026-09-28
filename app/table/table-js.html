@@ -456,13 +456,17 @@ document.addEventListener('mousedown', function (e) {
 
 /* ---------- which columns the table shows, their order, names and widths (saved in this browser) ---------- */
 var TCFG_KEY = 'pp_table_columns';
-var TCFG_DEFAULT = { order: [], hidden: { ind: 1 }, labels: {}, widths: {} }; // Industry hidden by default
+var TCFG_DEFAULT = { v: 2, order: [], hidden: { ind: 1, phase: 1 }, labels: {}, widths: {} }; // Industry + Phase hidden by default
 var TCFG = loadTcfg();
 
 function loadTcfg() {
   try {
     var v = JSON.parse(localStorage.getItem(TCFG_KEY) || 'null');
-    if (v && v.order) return v;
+    if (v && v.order) {
+      if (!v.v) v.hidden.phase = 1; // saved before Phase became hidden by default (can be shown again with Columns)
+      v.v = 2;
+      return v;
+    }
   } catch (e) {}
   return JSON.parse(JSON.stringify(TCFG_DEFAULT));
 }

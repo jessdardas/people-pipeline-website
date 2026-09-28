@@ -111,7 +111,11 @@ function rowsTable(entries, a) {
     '<div class="tw"><table class="tb"><thead><tr><th class="cnt">#</th>' +
     cols
       .map(function (i) {
-        return '<th>' + esc(i === nc ? 'Project name' : pretty(s.cols[i].h)) + '</th>';
+        return (
+          '<th class="ds" onclick="detSort(this)" title="Click to sort, click again to reverse">' +
+          esc(i === nc ? 'Project name' : pretty(s.cols[i].h)) +
+          '</th>'
+        );
       })
       .join('') +
     '</tr></thead><tbody>';
@@ -122,12 +126,40 @@ function rowsTable(entries, a) {
       '</td>' +
       cols
         .map(function (i) {
-          return '<td>' + cellHtml(s.cols[i].h, cv(e.s, i, e.j), a) + '</td>';
+          var v = cv(e.s, i, e.j);
+          return '<td data-v="' + esc(v == null ? '' : typeof v === 'number' ? v : String(v).toLowerCase()) + '">' + cellHtml(s.cols[i].h, v, a) + '</td>';
         })
         .join('') +
       '</tr>';
   });
   return h + '</tbody></table></div>';
+}
+
+/** Click a column title in a details table: sort A→Z / low→high, click again: Z→A / high→low (empty cells last). */
+function detSort(th) {
+  var t = th.closest('table'),
+    ci = th.cellIndex,
+    d = th.getAttribute('data-d') === '1' ? -1 : 1;
+  [].forEach.call(t.tHead.rows[0].cells, function (c) {
+    c.removeAttribute('data-d');
+    c.classList.remove('up', 'down');
+  });
+  th.setAttribute('data-d', d);
+  th.classList.add(d === 1 ? 'up' : 'down');
+  var body = t.tBodies[0],
+    rows = [].slice.call(body.rows);
+  rows.sort(function (x, y) {
+    var a = x.cells[ci].getAttribute('data-v'),
+      b = y.cells[ci].getAttribute('data-v');
+    if (a === '' || b === '') return (a === '') - (b === '');
+    var na = Number(a),
+      nb = Number(b);
+    return d * (!isNaN(na) && !isNaN(nb) ? na - nb : a.localeCompare(b, undefined, { numeric: true }));
+  });
+  rows.forEach(function (r, n) {
+    r.cells[0].textContent = n + 1;
+    body.appendChild(r);
+  });
 }
 
 function locate(a) {

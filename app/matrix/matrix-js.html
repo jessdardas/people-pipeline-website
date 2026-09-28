@@ -21,7 +21,22 @@ function scopeText() {
           })
           .join(', ')
     );
-  if (S.view === 1) parts.push(p); // pipelines only apply to map 01
+  if (S.view === 1) {
+    // pipelines and removed projects only apply to map 01
+    parts.push(p);
+    var ex = PROJECT_EXCLUDE.filter(function (e) {
+      return S.px[e.k];
+    });
+    if (ex.length)
+      parts.push(
+        'Without ' +
+          ex
+            .map(function (e) {
+              return e.t;
+            })
+            .join(', ')
+      );
+  }
   return parts.filter(Boolean).join(' · ');
 }
 

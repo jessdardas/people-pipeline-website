@@ -36,8 +36,9 @@ var CATEGORY_ROWS = [
 var MAPS = {
   1: {
     title: 'Current pipeline',
+    // an account whose open projects were ALL taken out with the "Remove projects" menu leaves the map
     filter: function (a) {
-      return a.cls === 'current pipeline';
+      return a.cls === 'current pipeline' && (!a.open.length || keptOpen(a).length > 0);
     },
     x: 'Phase of open projects',
     y: 'Account category',
@@ -45,16 +46,22 @@ var MAPS = {
       return { k: p, t: p };
     }).concat([
       { k: 'nophase', t: 'Open, no phase', opt: 1 },
+      { k: 'in', t: 'I.N.', opt: 1 },
       { k: 'noopen', t: 'No open project', opt: 1 }
     ]),
     rows: CATEGORY_ROWS,
-    // an account goes in EVERY phase column where it has an open project (once per phase),
-    // or in "No open project"; totals count each account once (see render() in matrix/matrix-js)
+    // an account goes in EVERY phase column where it has an open project (once per phase); its I.N.
+    // projects (IN_NAME in core/config-js) go in the I.N. column; no open project at all = "No open project".
+    // Totals count each account once (see render() in matrix/matrix-js)
     places: function (a) {
       var row = catKey(a.category);
-      if (!a.openPhases.length) return [[row, 'noopen']];
-      return a.openPhases.map(function (ph) {
-        return [row, ph];
+      if (!a.open.length) return [[row, 'noopen']];
+      return uniq(
+        keptOpen(a).map(function (o) {
+          return o.inn ? 'in' : o.ph;
+        })
+      ).map(function (c) {
+        return [row, c];
       });
     },
     place: function (a) {

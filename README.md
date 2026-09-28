@@ -41,7 +41,19 @@ Without steps 3–4 the site still works; only saving the New DB date doesn't (i
 2. **Task Scheduler** → *Create Task* → Triggers: *Daily*, repeat every **1 hour** → Actions: *Start a program*
    `powershell.exe` with arguments `-ExecutionPolicy Bypass -File "C:\inetpub\people-pipeline\tools\copy-excel.ps1"`.
 
-Open pages read the file again every hour (and within 10 minutes of a new upload); the ↻ button reads it right away and says *No changes* or *Updated*.
+The script also copies the **"last refreshed" notepad** (a `.txt` with *refresh* in its name, in the same folder as the Excel file) to `data\last refreshed.txt`. The top of the page shows its first line as written ("Last refreshed **28/09/2026 10:00**"); without that file it shows when the Excel file last changed.
+
+Open pages read the files again every hour (and within 10 minutes of a new upload). There is no refresh button.
+
+## Website-only features
+
+These are only in the website's `app\` (not in the Apps Script project):
+
+- **Map 01 · I.N. column**: open projects whose project name (or account name) has *I.N.*, *test* or *intercompany* go in the **I.N.** column instead of their phase column (`IN_NAME` in `app\core\config-js.html`).
+- **Map 01 · "All projects ▾" menu** (next to the pipelines): tick *I.N. projects*, *Remove from pipeline* and/or *No P2* to take those projects off the map. An account whose open projects are all taken off leaves the map, so the totals go down. The two columns are found in the projects sheet by name (*remove … pipeline*, *no p2*); a cell counts when it is filled in and not *no* / *false* / *0* (`PROJECT_EXCLUDE` in `app\core\config-js.html`).
+- **Account table**: *Phase* is hidden by default, like *Industry* (show it again with **Columns**).
+- **Account details**: click any column title in the tables (projects, contact persons, social media…) to sort A→Z / low→high, click again for Z→A / high→low.
+- **Last refreshed** comes from the notepad (see above); no ↻ button.
 
 ## Updating the website after changing the app
 
@@ -52,6 +64,8 @@ powershell -ExecutionPolicy Bypass -File tools\update-from-app.ps1 -AppProject "
 ```
 
 then copy the folder to the server again (or run the script on the server). Only `app\` and `server\Pipeline.js` are copied.
+
+⚠️ This **replaces** `app\`, so it removes the website-only features above until they are also added to the Apps Script project.
 
 ## Admin
 
