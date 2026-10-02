@@ -72,17 +72,20 @@ var OPEN_STATUS = /^open$/i;
 //               the "other" column of map 01; No P2 projects stay in their phase column
 // How a kind is recognised:
 //   name  = matched in the project name (or the account name)
-//   col   = a flag column of the projects sheet (column name in lower case, letters only); the flag counts when the
-//           cell is filled in and is not "no" / "false" / "0"
+//   col   = a flag column of the projects sheet (column name in lower case, letters only, e.g. pslabnop2); the flag
+//           counts when the cell is filled in and is not "no" / "false" / "0"
 //   owner = matched in the project owner column (OWNER_COLS)
 // off = left out by default (standard view). Switching "Real projects only" off shows every kind.
 var PROJECT_EXCLUDE = [
   { k: 'inn', t: 'I.N.', name: /(^|[^a-z0-9])i\.\s?n(\.|(?![a-z0-9]))/i, off: 1 },
   { k: 'ico', t: 'Intercompany', name: /inter-?\s?company/i, off: 1 },
-  { k: 'nop2', t: 'No P2', col: /^nop2/, off: 1 },
-  { k: 'rfp', t: 'Excluded from pipeline', col: /(remove|exclude).*pipeline/, off: 0 },
-  // internal project owners: whole words, so "SAM" matches "Sam Haddad" but not "Samir"
-  { k: 'own', t: 'Internal owner', owner: /\b(roland|cybel|roger|sam|dany daaboul|pslab)\b/i, off: 0 }
+  // the file's columns: pslab_nop2 and pslab_excludingfrompipeline (TRUE / FALSE)
+  { k: 'nop2', t: 'No P2', col: /nop2/, off: 1 },
+  { k: 'rfp', t: 'Excluded from pipeline', col: /(remov|exclud).*pipeline/, off: 0 },
+  // internal project owners (OwnerName column): a word of the name STARTS with one of these, so "CYBEL" also
+  // matches "Cybelle …", "SAM" matches "Sam …" and "Sammy …", "PSLAB" matches the pslab-… teams.
+  // To match a whole name only, write it in full with \b at the end, e.g. sam saad\b
+  { k: 'own', t: 'Internal owner', owner: /\b(roland|cybel|roger|sam|dany daaboul|pslab)/i, off: 0 }
 ];
 var INTERNAL_KINDS = ['inn', 'ico', 'rfp', 'own']; // shown → the "other (i.n. ...)" column on map 01
 
@@ -126,7 +129,7 @@ var S = {
   source: {},
   checked: 0,
   units: [],
-  pipes: [],
+  pipes: [1], // map 01 opens on Pipeline 1 (empty = all pipelines)
   clean: true, // "Real projects only" switch (maps 01 + 02)
   px: {}, // which PROJECT_EXCLUDE kinds that switch leaves out (filled from their "off" setting in build())
   noP0: true, // "Without P0" switch (maps 01 + 02)

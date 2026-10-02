@@ -61,9 +61,9 @@ These are only in the website's `app\` (not in the Apps Script project).
   |---|---|---|
   | I.N. | *I.N.* in the project name (or the account name) | left out |
   | Intercompany | *intercompany* in the project name (or the account name) | left out |
-  | No P2 | the *no p2* column of the projects sheet is filled in | left out |
-  | Excluded from pipeline | the *exclude/remove … pipeline* column of the projects sheet is filled in | shown in **other** |
-  | Internal owner | the project owner (*project owner* column) contains ROLAND, CYBEL, ROGER, SAM, DANY DAABOUL or PSLAB, as whole words (so *Samir* is not *Sam*) | shown in **other** |
+  | No P2 | *pslab_nop2* of the projects sheet is TRUE | left out |
+  | Excluded from pipeline | *pslab_excludingfrompipeline* of the projects sheet is TRUE | shown in **other** |
+  | Internal owner | the project owner (*OwnerName*) has a word starting with ROLAND, CYBEL, ROGER, SAM, DANY DAABOUL or PSLAB (so *Cybelle*, *Sammy* and the *pslab-…* teams count too) | shown in **other** |
 
   Shown I.N. / intercompany / excluded / internal-owner projects go in the **other (i.n. ...)** column of map 01; shown No P2 projects stay in their phase column. An account whose projects are all left out leaves the map. Switching *Real projects only* off shows every kind. *standard* in the ▾ menu goes back to the table above. The subtitle under the map title only mentions these switches when they differ from the standard. Settings: `PROJECT_EXCLUDE`, `INTERNAL_KINDS`, `OWNER_COLS` in `app\core\config-js.html`.
 
