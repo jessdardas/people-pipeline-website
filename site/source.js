@@ -14,6 +14,9 @@ var SITE = {
   settingsApi: 'api/settings.ashx',
   settingsFile: 'data/settings.json',
   last: null, // hash of the last data read
+  // shown very small at the bottom left of the page, so you can check that the server runs the newest version
+  // (change it with every update: the date + a word about what changed)
+  version: 'version 2026-10-02 · stay in touch: weeks only',
   // Faster opening: the data read from the Excel file is kept in this browser (IndexedDB) together with the
   // file's date + size. Next time, if the file on the server has the same date + size, the kept copy is used
   // and the Excel file is not downloaded or decoded again. Change cacheVersion when server/Pipeline.js changes
@@ -272,3 +275,12 @@ function sitePost(body) {
     });
   });
 }
+
+/* the version label (SITE.version) at the bottom left of the page */
+document.addEventListener('DOMContentLoaded', function () {
+  var v = document.createElement('div');
+  v.className = 'site-version';
+  v.textContent = SITE.version;
+  v.style.cssText = 'position:fixed;left:8px;bottom:4px;font-size:10px;color:#b5b5b5;z-index:1;pointer-events:none';
+  document.body.appendChild(v);
+});

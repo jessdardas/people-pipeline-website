@@ -25,6 +25,8 @@ data\people pipeline.xlsx  ──►  the browser reads it (SheetJS)  ──► 
 | `tools\copy-excel.ps1` | copies the newest Excel file into `data\` (run it every hour) |
 | `tools\update-from-app.ps1` | copies the latest `app\` + `server\Pipeline.js` from the Apps Script project |
 
+**Which version is running?** The very small grey text at the bottom left of the page (e.g. *version 2026-10-02 · stay in touch: weeks only*) is `version` in `site\source.js`; it changes with every update. If it is older than the latest update on GitHub, the server has not been updated yet (`git pull` in the site folder, then Ctrl+F5).
+
 ## Install on IIS (one time)
 
 1. Copy this folder to the server, e.g. `C:\inetpub\people-pipeline`.
@@ -72,7 +74,7 @@ These are only in the website's `app\` (not in the Apps Script project).
 The list of accounts under every map (after clicking a box, a row or a column title) has two views, switched at the top left of the list:
 
 - **Account listing** – the table as before.
-- **Stay in touch policy** – the same accounts, one row each (no export here, and no touchpoint columns: the touchpoints are in the pop-up and in the account details):
+- **Stay in touch policy** – the same accounts, one row each. Columns: the **account name and the weeks only** (no export here, no touchpoint columns: the touchpoints are in the pop-up and in the account details):
   - one column per week: **5 weeks before** this week, **this week** (highlighted), **10 weeks after**. Past weeks show the **subject** of each of the account's activities from the **activities** sheet, **coloured by its type** (legend above the table; hover for date · type · subject). **Tasks are never shown.** The next weeks are empty for now: later they will show the to-dos.
   - **Click an account** → the touchpoints pop-up, like a to-do list: ☑ / ☐ Site visit (last date), Pub 1, Pub 2, Pub 3 … each its own checkpoint (with the details), then *What they did* (the activities, newest first) and *Next* (the to-dos, later). *Open account details* goes to the details panel.
 
@@ -91,7 +93,7 @@ The tools above the list: on the **left** the two views, the search and **Column
 - **Search** (top): picking an account opens its details; the map stays as it is (*Show on map* in the details jumps to it).
 - **Last project**: when the file has no last-project date, the latest date of the account's own projects is used: the project's *DateIn*, else its *actualclosedate* (map 02 and the details, which then say *from its projects*). `PROJECT_DATE_COLS` in `app\core\config-js.html`.
 - **New DB**: with New DB on, a small date box next to *validated on or after* changes the date for your view only; nothing is saved (*reset* goes back to the admin date).
-- **Account details** (a wider panel): *Website* in the overview (a link; the account column *websiteurl* / *website*); *Contact persons* as names only; the project table shows *Project name*, *Phase* and *Status* (**+ columns** adds others, remembered in your browser); *Activities* as a tidy table – Date, Type (colour), Subject, then the other filled-in columns – that scrolls sideways when it is wider than the panel. Click a column title in any table to sort, click again to reverse.
+- **Account details** (a wider panel): *Website* in the overview (a link; the account column *websiteurl* / *website*); *Contact persons* as names only; the project table shows *Project name*, *Phase* and *Status* (**+ columns** adds others, remembered in your browser); *Activities* as a tidy list, newest first: the date on the left, the type (colour) and the subject, a small line with the other filled-in columns (owner, regarding, status, location …) and long texts (description) below in 2 lines (click to see all). On top: buttons to show one type only, and *Newest first / Oldest first*. Click a column title in the other tables to sort, click again to reverse.
 
 ## Updating the website after changing the app
 

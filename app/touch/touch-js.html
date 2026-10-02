@@ -4,7 +4,7 @@
  * The second view of the account list under the maps ("Account listing" | "Stay in touch policy", see
  * listBlock() in table/table-js). It shows the SAME accounts as the listing (the box / row / column picked on the
  * map, the search in the list, the column filters), one row each:
- *   - one column per week: WEEKS_BEFORE weeks before this week, this week, WEEKS_AFTER weeks after
+ * Columns: the account name, then only the weeks: WEEKS_BEFORE weeks before this week, this week, WEEKS_AFTER weeks after
  *     (core/config-js). Past weeks: the subjects of the account's activities ("activities" sheet), coloured by type
  *     (ACT_COLORS), tasks left out (ACT_HIDE). Next weeks: empty for now - later the to-dos.
  * (The touchpoints - last site visit, Pub 1, Pub 2 … - are in the pop-up, and as columns in Account listing with
@@ -104,7 +104,7 @@ function renderStay(box, list) {
     '</div>' +
     actLegend(list) +
     '<div class="tpw"><table class="tb stay"><thead><tr>' +
-    '<th class="cnt">#</th><th class="acc">Account</th>' +
+    '<th class="acc">Account</th>' + // the only column besides the weeks (no #, no touchpoints)
     weeks
       .map(function (w) {
         return (
@@ -131,9 +131,7 @@ function renderStay(box, list) {
       '<tr onclick="openTouch(' +
       a.i +
       ')" title="Click: touchpoints of this account">' +
-      '<td class="cnt">' +
-      (n + 1) +
-      '</td><td class="acc"><b>' +
+      '<td class="acc"><b>' +
       esc(a.name) +
       '</b><small>' +
       esc([unitLabel(a.su), cap(a.cls)].filter(Boolean).join(' · ')) +

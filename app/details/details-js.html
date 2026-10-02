@@ -240,11 +240,31 @@ function webLink(u) {
   return '<a href="' + esc(href) + '" target="_blank" rel="noopener">' + esc(String(u).replace(/^(https?:\/\/)?(www\.)?/i, '').replace(/\/$/, '')) + '</a>';
 }
 
-/** The account's activities (no tasks), newest first: Date | Type (colour) | Subject | the sheet's other filled-in
- *  columns. Click a column title to sort. Scrolls sideways when it is wider than the panel. */
-function actsTable(a) {
+/* ---------- activities in the account details: a tidy list, newest first ----------
+   Each activity = one row: the date (left), the type (colour, ACT_COLORS) + the subject, a small line with the
+   other filled-in columns (owner, regarding, status …), and long texts (e.g. description) below, 2 lines
+   (click to see all). On top: filter by type, newest / oldest first. Tasks are never shown (ACT_HIDE). */
+var ACT_VIEW = { type: '', asc: false }; // the choice above the list (kept while the page is open)
+
+/** The activities block of the details panel (its contents are drawn by renderActs()). */
+function actsBlock(a) {
+  return '<div id="actBox" data-i="' + a.i + '">' + actsHtml(a) + '</div>';
+}
+
+function renderActs() {
+  var box = document.getElementById('actBox');
+  if (box) box.innerHTML = actsHtml(S.acc[+box.getAttribute('data-i')]);
+}
+
+function setActType(t) {
+  ACT_VIEW.type = ACT_VIEW.type === t ? '' : t;
+  renderActs();
+}
+
+function actsHtml(a) {
   var s = S.sheets[a.activities[0].e.s],
     own = [actCol(s, 'date'), actCol(s, 'type'), actCol(s, 'subject')],
+    // the other columns that are filled in for at least one activity (no ids)
     more = s.cols
       .map(function (c, i) {
         return i;
@@ -258,52 +278,80 @@ function actsTable(a) {
           })
         );
       });
-  var th = function (t) {
-    return '<th class="ds" onclick="detSort(this)" title="Click to sort, click again to reverse">' + esc(t) + '</th>';
-  };
+  // types with their counts → filter buttons
+  var cnt = {};
+  a.activities.forEach(function (x) {
+    var t = x.type || 'Other';
+    cnt[t] = (cnt[t] || 0) + 1;
+  });
+  var list = a.activities
+    .filter(function (x) {
+      return !ACT_VIEW.type || (x.type || 'Other') === ACT_VIEW.type;
+    })
+    .slice()
+    .sort(function (x, y) {
+      return ((x.date || 0) - (y.date || 0)) * (ACT_VIEW.asc ? 1 : -1);
+    });
   var h =
-    '<div class="tw actw"><table class="tb actt"><thead><tr><th class="cnt">#</th>' +
-    th('Date') +
-    th('Type') +
-    th('Subject') +
-    more
-      .map(function (i) {
-        return th(pretty(s.cols[i].h));
+    '<div class="acth"><div class="actf"><button class="' +
+    (ACT_VIEW.type ? '' : 'on') +
+    '" onclick="ACT_VIEW.type=\'\';renderActs()">All ' +
+    a.activities.length +
+    '</button>' +
+    Object.keys(cnt)
+      .sort()
+      .map(function (t) {
+        var c = actColor(t);
+        return (
+          '<button class="' +
+          (ACT_VIEW.type === t ? 'on' : '') +
+          '" onclick="setActType(\'' +
+          esc(t).replace(/'/g, '&#39;') +
+          '\')"><i style="background:' +
+          c.bg +
+          ';border-color:' +
+          c.fg +
+          '"></i>' +
+          esc(t) +
+          ' ' +
+          cnt[t] +
+          '</button>'
+        );
       })
       .join('') +
-    '</tr></thead><tbody>';
-  a.activities.forEach(function (x, n) {
+    '</div><button class="lnk" onclick="ACT_VIEW.asc=!ACT_VIEW.asc;renderActs()">' +
+    (ACT_VIEW.asc ? 'Oldest first ↑' : 'Newest first ↓') +
+    '</button></div><ol class="actl">';
+  list.forEach(function (x) {
+    var d = x.date != null ? new Date((x.date - 25569) * 864e5) : null,
+      meta = [],
+      long = [];
+    more.forEach(function (i) {
+      var v = cv(x.e.s, i, x.e.j);
+      if (v == null || v === '') return;
+      var txt = fmtVal(s.cols[i].h, v, a, true);
+      if (String(txt).length > 60) long.push(txt);
+      else meta.push('<span><em>' + esc(pretty(s.cols[i].h)) + '</em> ' + esc(txt) + '</span>');
+    });
     h +=
-      '<tr><td class="cnt">' +
-      (n + 1) +
-      '</td><td class="d" data-v="' +
-      (x.date == null ? '' : x.date) +
-      '">' +
-      esc(x.date ? fmtXl(x.date) : '—') +
-      '</td><td data-v="' +
-      esc(x.type.toLowerCase()) +
-      '">' +
-      (x.type ? actChip(x, true) : '') +
-      '</td><td class="sub" data-v="' +
-      esc(x.subject.toLowerCase()) +
-      '">' +
-      esc(x.subject) +
-      '</td>' +
-      more
-        .map(function (i) {
-          var v = cv(x.e.s, i, x.e.j);
-          return (
-            '<td data-v="' +
-            esc(v == null ? '' : typeof v === 'number' ? v : String(v).toLowerCase()) +
-            '">' +
-            cellHtml(s.cols[i].h, v, a) +
-            '</td>'
-          );
+      '<li><div class="ad">' +
+      (d
+        ? '<b>' + d.getUTCDate() + ' ' + d.toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' }) + '</b><small>' + d.getUTCFullYear() + '</small>'
+        : '<b>—</b>') +
+      '</div><div class="ab"><div class="at">' +
+      (x.type ? actChip(x) : '') +
+      '<b>' +
+      esc(x.subject || '(no subject)') +
+      '</b></div>' +
+      (meta.length ? '<div class="am">' + meta.join('') + '</div>' : '') +
+      long
+        .map(function (t) {
+          return '<div class="ax" onclick="this.classList.toggle(\'open\')" title="Click to see all">' + esc(t) + '</div>';
         })
         .join('') +
-      '</tr>';
+      '</div></li>';
   });
-  return h + '</tbody></table></div>';
+  return h + '</ol>';
 }
 
 function locate(a) {
@@ -407,7 +455,7 @@ function openDetail(i) {
       })
       .join('') +
     '</div>';
-  if (a.activities.length) h += '<h3>Activities (' + a.activities.length + ')</h3>' + actsTable(a);
+  if (a.activities.length) h += '<h3>Activities (' + a.activities.length + ')</h3>' + actsBlock(a);
   if (a.lists.length) h += '<h3>Other linked rows (' + a.lists.length + ')</h3>' + groupTables(a.lists, a);
   // any other column in the file (new query columns show up here automatically)
   var more = [];

@@ -215,29 +215,112 @@
   background: var(--soft);
   font-size: 12.5px;
 }
-/* activities (actsTable()): tidy, one line per activity, scrolls sideways when wide */
-.actw {
-  overflow-x: auto;
-  padding-bottom: 4px;
+/* activities (actsHtml() in details/details-js): filter + newest/oldest on top, then one tidy row each */
+.acth {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
 }
-.det .actt {
-  width: max-content;
-  min-width: 100%;
+.actf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
-.det .actt td,
-.det .actt th {
-  white-space: nowrap;
-  vertical-align: middle;
+.actf button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--text-soft);
+  background: var(--surface);
 }
-.det .actt td.sub {
-  white-space: normal;
-  min-width: 220px;
-  max-width: 360px;
+.actf button.on {
+  border-color: var(--text);
+  color: var(--text);
+  font-weight: 600;
 }
-.det .actt td.d {
+.actf button i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  border: 1.5px solid;
+}
+.actl {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.actl li {
+  display: flex;
+  gap: 14px;
+  padding: 10px 14px;
+  background: var(--surface);
+}
+.actl li + li {
+  border-top: 1px solid var(--soft);
+}
+.actl li:hover {
+  background: #fafbfd;
+}
+.actl .ad {
+  width: 52px;
+  flex: none;
+  text-align: center;
+  line-height: 1.15;
+}
+.actl .ad b {
+  display: block;
+  font-size: 13px;
+}
+.actl .ad small {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.actl .ab {
+  flex: 1;
+  min-width: 0;
+}
+.actl .at {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.actl .at b {
+  font-size: 13px;
+}
+.actl .am {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 4px;
+  font-size: 12px;
   color: var(--text-soft);
 }
-.det .actt td {
-  padding: 6px 8px; /* compact rows */
+.actl .am em {
+  font-style: normal;
+  color: var(--text-faint);
+}
+.actl .ax {
+  margin-top: 5px;
+  font-size: 12px;
+  color: var(--text-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  cursor: pointer;
+}
+.actl .ax.open {
+  display: block;
 }
 </style>
