@@ -72,18 +72,17 @@ These are only in the website's `app\` (not in the Apps Script project).
 The list of accounts under every map (after clicking a box, a row or a column title) has two views, switched at the top left of the list:
 
 - **Account listing** – the table as before.
-- **Stay in touch policy** – the same accounts, one row each (no export here, and no touchpoint columns: those are in the pop-up and, with the **touchpoints** switch, in Account listing):
-  - one column per week: **5 weeks before** this week, **this week** (highlighted), **10 weeks after**. Past weeks show the account's activities from the **activities** sheet, **colour-coded by type** (legend above the table). **Tasks are never shown.** The next weeks are empty for now: later they will show the to-dos.
+- **Stay in touch policy** – the same accounts, one row each (no export here, and no touchpoint columns: the touchpoints are in the pop-up and in the account details):
+  - one column per week: **5 weeks before** this week, **this week** (highlighted), **10 weeks after**. Past weeks show the **subject** of each of the account's activities from the **activities** sheet, **coloured by its type** (legend above the table; hover for date · type · subject). **Tasks are never shown.** The next weeks are empty for now: later they will show the to-dos.
   - **Click an account** → the touchpoints pop-up, like a to-do list: ☑ / ☐ Site visit (last date), Pub 1, Pub 2, Pub 3 … each its own checkpoint (with the details), then *What they did* (the activities, newest first) and *Next* (the to-dos, later). *Open account details* goes to the details panel.
 
 Where it comes from: the **activities** sheet is found by its name; its date, type and subject columns by name (`ACT_COLS`). Hidden types: `ACT_HIDE` (tasks). Colours: `ACT_COLORS` / `ACT_OTHER_COLORS`. Site visit: an account column with *site visit* in its name, or an activity whose type or subject says *site visit* (the latest date is shown). All in `app\core\config-js.html`. The account details panel shows the same touchpoints and activities.
 
 ### Account table (under the maps)
 
-The tools above the list: on the **left** the two views, the search, **Columns** and the **touchpoints** switch; on the **right**, away from them, the **check to export** switch with **Excel** / **PDF**.
+The tools above the list: on the **left** the two views, the search and **Columns**; on the **right**, away from them, the **check to export** switch with **Excel** / **PDF**. The table has no touchpoint columns (they are in the Stay in touch pop-up and the account details).
 
 - **check to export** (right): switch it on, then tick accounts in the **#** column (the box in the # title ticks the whole list) – in either view; **Excel** / **PDF** then export only the ticked accounts. Ticks stay while the page is open (*clear* removes them).
-- **touchpoints** (left, Account listing only): adds the *Last site visit* and *Pub 1, Pub 2, Pub 3 …* columns (off by default). *Pub N* = the contact person column `pslab_publicationN`, ticked when at least one contact person of the account has it filled in.
 - Stay in touch policy has only the views and the search: no export, no check boxes.
 - **City** next to *Country* (the *city* column of the accounts sheet), *Last contact* next to *Last meeting*; *Phase* and *Industry* hidden by default (show them with **Columns**).
 

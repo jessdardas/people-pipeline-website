@@ -144,34 +144,6 @@ var TCOLS = [
   }
 ];
 
-/** Touchpoint columns (Account listing, only when the "touchpoints" toggle is on - S.tpCols, off by default):
- *  Last site visit + one column per publication (Pub 1, Pub 2 …). Made again for each load (the number of
- *  publication columns comes from the file), called by build() in core/data-js. */
-function makeTpCols() {
-  for (var i = TCOLS.length - 1; i >= 0; i--) if (TCOLS[i].tp) TCOLS.splice(i, 1);
-  TCOLS.push({
-    k: 'tpvisit',
-    t: 'Last site visit',
-    tp: 1,
-    g: function (a) {
-      return a.tp.visitDate ? fmtXl(a.tp.visitDate) : a.tp.visit ? 'yes' : '';
-    },
-    s: function (a) {
-      return a.tp.visitDate ? -a.tp.visitDate : a.tp.visit ? 0 : 1e9;
-    }
-  });
-  pubNums().forEach(function (n) {
-    TCOLS.push({
-      k: 'tppub' + n,
-      t: 'Pub ' + n,
-      tp: 1,
-      g: function (a) {
-        return a.tp.pub[n] && a.tp.pub[n].length ? '✓' : '';
-      }
-    });
-  });
-}
-
 function lmBucket(d) {
   return d == null
     ? 'Never'
@@ -278,7 +250,7 @@ function closeCell() {
 }
 
 /** The block under the matrix: title, two views (Account listing / Stay in touch policy), tools, the list.
- *  Account listing - left: views, search, Columns, "touchpoints" switch; right, far away: "check to export", Excel, PDF.
+ *  Account listing - left: views, search, Columns; right, far away: "check to export", Excel, PDF.
  *  Stay in touch policy - only the views and the search. */
 function listBlock(meta, closable) {
   return (
@@ -297,8 +269,7 @@ function listBlock(meta, closable) {
     esc(S.g.q) +
     '" oninput="S.g.q=this.value;S.g.limit=100;renderList()">' +
     (S.listView === 'list'
-      ? '<button class="btn ghost" onclick="toggleColPanel()" title="Show, hide, order and rename the columns">Columns</button>' +
-        chip('touchpoints', S.tpCols, 'setTpCols', 'Add the columns Last site visit, Pub 1, Pub 2 …')
+      ? '<button class="btn ghost" onclick="toggleColPanel()" title="Show, hide, order and rename the columns">Columns</button>'
       : '') +
     '</div><div class="dt-r">' +
     // export tools: Account listing only (Stay in touch policy has no export)
@@ -667,16 +638,8 @@ function orderedCols() {
 
 function visibleCols() {
   return orderedCols().filter(function (c) {
-    return c.tp ? S.tpCols : !TCFG.hidden[c.k]; // touchpoint columns follow the "touchpoints" box only
+    return !TCFG.hidden[c.k];
   });
-}
-
-/** "touchpoints" box above the account table: add / remove the touchpoint columns. */
-function setTpCols(on) {
-  S.tpCols = on;
-  var el = document.querySelector('.dt-l .chip');
-  if (el) el.classList.toggle('on', on);
-  renderList();
 }
 
 function toggleColPanel() {
@@ -688,9 +651,7 @@ function toggleColPanel() {
 
 function renderColPanel() {
   var p = document.getElementById('cpop'),
-    cols = orderedCols().filter(function (c) {
-      return !c.tp; // the touchpoint columns are switched with the "touchpoints" box instead
-    });
+    cols = orderedCols();
   p.innerHTML =
     '<div class="fp-t">Columns<span class="ml"></span><button class="lnk" onclick="resetCols()">Reset</button><button class="lnk" onclick="toggleColPanel()">Close</button></div>' +
     '<div class="cols-list">' +

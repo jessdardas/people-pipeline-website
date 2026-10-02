@@ -5,7 +5,7 @@
  * listBlock() in table/table-js). It shows the SAME accounts as the listing (the box / row / column picked on the
  * map, the search in the list, the column filters), one row each:
  *   - one column per week: WEEKS_BEFORE weeks before this week, this week, WEEKS_AFTER weeks after
- *     (core/config-js). Past weeks: the account's activities from the "activities" sheet, colour-coded by type
+ *     (core/config-js). Past weeks: the subjects of the account's activities ("activities" sheet), coloured by type
  *     (ACT_COLORS), tasks left out (ACT_HIDE). Next weeks: empty for now - later the to-dos.
  * (The touchpoints - last site visit, Pub 1, Pub 2 … - are in the pop-up, and as columns in Account listing with
  * the "touchpoints" switch. This view has no export.)
@@ -51,8 +51,9 @@ function tpBox(on) {
   return '<span class="tpbox' + (on ? ' on' : '') + '" title="' + (on ? 'done' : 'not yet') + '">' + (on ? '✓' : '') + '</span>';
 }
 
-/** A colour-coded activity label (ACT_COLORS). full = with the subject (the pop-up). */
-function actChip(x, full) {
+/** A colour-coded activity label (colour = the type, ACT_COLORS).
+ *  show = 'subject' (week cells: the subject, else the type) or anything else (the type: legend, pop-up, details). */
+function actChip(x, show) {
   var c = actColor(x.type);
   return (
     '<span class="act" style="background:' +
@@ -62,7 +63,7 @@ function actChip(x, full) {
     '" title="' +
     esc(fmtXl(x.date) + (x.type ? ' · ' + x.type : '') + (x.subject ? ' · ' + x.subject : '')) +
     '">' +
-    esc(full ? x.type || 'Activity' : x.type || x.subject || 'activity') +
+    esc(show === 'subject' ? x.subject || x.type || 'activity' : x.type || 'Activity') +
     '</span>'
   );
 }
@@ -98,7 +99,7 @@ function renderStay(box, list) {
   var h =
     '<div class="stay-info">' +
     (hasActs
-      ? 'Past weeks: what the account did (from the activities sheet, no tasks) · this week highlighted · next weeks: to-dos (coming later)'
+      ? 'Past weeks: the subject of each activity, coloured by type (no tasks) · hover for the details · this week highlighted · next weeks: to-dos (coming later)'
       : 'No "activities" sheet in the Excel file yet: the weeks stay empty.') +
     '</div>' +
     actLegend(list) +
@@ -148,7 +149,7 @@ function renderStay(box, list) {
                 return x.date >= w.start && x.date < w.start + 7;
               })
               .map(function (x) {
-                return actChip(x);
+                return actChip(x, 'subject'); // the subject; the colour still tells the type (legend above)
               })
               .join('') +
             '</td>'
