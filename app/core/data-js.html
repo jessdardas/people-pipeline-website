@@ -59,6 +59,7 @@ function build(d) {
     S._pxSet = true;
   }
   S.source = d.source || {};
+  S.pubNums = null; // publication numbers are worked out again for the new data (pubNums())
   if (d.settings) S.settings = d.settings;
   S.checked = Date.now();
   S.sheets = d.sheets;
@@ -185,12 +186,18 @@ function build(d) {
         a.lpFromProj = true;
       }
     }
-    // touchpoints (app/touch/): activities with date/type/subject, site visit, publications
+    // touchpoints (app/touch/): activities (without tasks, ACT_HIDE), last site visit, Pub 1 / Pub 2 / …
     a.activities = a.acts
       .map(actInfo)
+      .filter(function (x) {
+        return !ACT_HIDE.test(x.type || x.subject);
+      })
       .sort(function (x, y) {
         return (y.date || 0) - (x.date || 0);
       });
+    a.acts = a.activities.map(function (x) {
+      return x.e; // the details panel shows the same rows (no tasks)
+    });
     a.tp = touchpoints(a);
     a.projPhases = uniq(
       a.projects
@@ -243,6 +250,7 @@ function build(d) {
       .sort()
   );
   buildSocialFilters();
+  makeTpCols(); // touchpoint columns of the account table (Last site visit, Pub 1, Pub 2 …)
 }
 
 /** Is the project marked in the PROJECT_EXCLUDE column of kind e? */
@@ -307,43 +315,86 @@ function contactNameCol(s) {
   return nameCol(s);
 }
 
-/** The account's touchpoints: { visit: true/false, visitWhy: text, pubs: [{ who, what }] }. */
-function touchpoints(a) {
-  var t = { visit: false, visitWhy: '', pubs: [] };
-  // site visit: an account column …
-  Object.keys(FIELD).forEach(function (k) {
-    if (!t.visit && SITE_VISIT_COL.test(k) && isYes(F(a, k))) {
-      t.visit = true;
-      t.visitWhy = typeof F(a, k) === 'number' && F(a, k) > NEVER ? fmtXl(F(a, k)) : String(F(a, k));
-    }
-  });
-  // … or an activity that says "site visit"
-  if (!t.visit)
-    a.activities.some(function (x) {
-      if (SITE_VISIT_ACT.test(x.type) || SITE_VISIT_ACT.test(x.subject)) {
-        t.visit = true;
-        t.visitWhy = (x.date ? fmtXl(x.date) + ' · ' : '') + (x.subject || x.type);
-        return true;
-      }
+/** The publication numbers found in the contact persons sheet(s): pslab_publication1, 2, 3 … → [1, 2, 3]
+ *  (a column without a number counts as 1). Worked out once per load (S.pubNums). */
+function pubNums() {
+  if (S.pubNums) return S.pubNums;
+  var n = {};
+  S.sheets.forEach(function (s) {
+    if (s.role !== 'contacts') return;
+    s.hk.forEach(function (h) {
+      var m = h.match(PUBLICATION_COL);
+      if (m) n[+(m[1] || 1)] = 1;
     });
-  // publications: pslab_publication1, 2, 3 … of the account's contact persons
+  });
+  S.pubNums = Object.keys(n)
+    .map(Number)
+    .sort(function (x, y) {
+      return x - y;
+    });
+  return S.pubNums;
+}
+
+/** The account's touchpoints:
+ *   visitDate = last site visit (Excel date number) or null; visit = true when there was one (even without a date)
+ *   visitWhy  = what the last site visit was (activity subject or the account column)
+ *   pub       = { 1: [{ who, what }], 2: [...], … } - one entry per publication number (Pub 1, Pub 2 …)
+ */
+function touchpoints(a) {
+  var t = { visit: false, visitDate: null, visitWhy: '', pub: {} };
+  var seen = function (date, why) {
+    t.visit = true;
+    if (date != null && (t.visitDate == null || date > t.visitDate)) {
+      t.visitDate = date;
+      t.visitWhy = why;
+    } else if (!t.visitWhy) t.visitWhy = why;
+  };
+  // site visit: an account column with "site visit" in its name (a date, or any yes) …
+  Object.keys(FIELD).forEach(function (k) {
+    var v = F(a, k);
+    if (SITE_VISIT_COL.test(k) && isYes(v)) seen(typeof v === 'number' && v > NEVER ? v : null, pretty(k));
+  });
+  // … and every activity that says "site visit" (the latest one wins)
+  a.activities.forEach(function (x) {
+    if (SITE_VISIT_ACT.test(x.type) || SITE_VISIT_ACT.test(x.subject)) seen(x.date, x.subject || x.type);
+  });
+  // publications: each pslab_publicationN column of the account's contact persons is its own checkpoint
+  pubNums().forEach(function (n) {
+    t.pub[n] = [];
+  });
   a.contacts.forEach(function (e) {
     var s = S.sheets[e.s],
       nc = contactNameCol(s);
     s.hk.forEach(function (h, c) {
-      if (!PUBLICATION_COL.test(h)) return;
+      var m = h.match(PUBLICATION_COL);
+      if (!m) return;
       var v = cv(e.s, c, e.j);
       if (!isYes(v)) return;
-      t.pubs.push({
+      t.pub[+(m[1] || 1)].push({
         who: nc < 0 ? '' : String(cv(e.s, nc, e.j) || ''),
-        // a plain "yes" shows the column name ("Publication 2"); any other text is the publication itself
-        what: /^(yes|y|true|1|x)$/i.test(String(v).trim())
-          ? pretty(s.cols[c].h).replace(/(\D)(\d+)$/, '$1 $2')
-          : String(v)
+        what: /^(yes|y|true|1|x)$/i.test(String(v).trim()) ? '' : String(v) // a plain "yes" has no details
       });
     });
   });
   return t;
+}
+
+/** "Person: text · Person" - the details of one publication checkpoint. */
+function pubText(list) {
+  return (list || [])
+    .map(function (p) {
+      return p.who && p.what ? p.who + ': ' + p.what : p.who || p.what;
+    })
+    .join(' · ');
+}
+
+/** The colour of an activity type (ACT_COLORS, else a fixed colour per type from ACT_OTHER_COLORS). */
+function actColor(type) {
+  var t = String(type || '');
+  for (var i = 0; i < ACT_COLORS.length; i++) if (ACT_COLORS[i].re.test(t)) return ACT_COLORS[i];
+  var h = 0;
+  for (var j = 0; j < t.length; j++) h = (h * 31 + t.charCodeAt(j)) % 997;
+  return ACT_OTHER_COLORS[h % ACT_OTHER_COLORS.length];
 }
 
 /** The project's owner (OWNER_COLS in core/config-js), '' when the projects sheet has no owner column. */

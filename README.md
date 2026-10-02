@@ -62,26 +62,29 @@ These are only in the website's `app\` (not in the Apps Script project).
   | I.N. | *I.N.* in the project name (or the account name) | left out |
   | Intercompany | *intercompany* in the project name (or the account name) | left out |
   | No P2 | *pslab_nop2* of the projects sheet is TRUE | left out |
-  | Excluded from pipeline | *pslab_excludingfrompipeline* of the projects sheet is TRUE | shown in **other** |
-  | Internal owner | the project owner (*OwnerName*) has a word starting with ROLAND, CYBEL, ROGER, SAM, DANY DAABOUL or PSLAB (so *Cybelle*, *Sammy* and the *pslab-…* teams count too) | shown in **other** |
+  | Excluded from pipeline | *pslab_excludingfrompipeline* of the projects sheet is TRUE | left out |
+  | Internal owner | the project owner (*OwnerName*) has a word starting with ROLAND, CYBEL, ROGER, SAM, DANY DAABOUL or PSLAB (so *Cybelle*, *Sammy* and the *pslab-…* teams count too) | left out |
 
-  Shown I.N. / intercompany / excluded / internal-owner projects go in the **other (i.n. ...)** column of map 01; shown No P2 projects stay in their phase column. An account whose projects are all left out leaves the map. Switching *Real projects only* off shows every kind. *standard* in the ▾ menu goes back to the table above. The subtitle under the map title only mentions these switches when they differ from the standard. Settings: `PROJECT_EXCLUDE`, `INTERNAL_KINDS`, `OWNER_COLS` in `app\core\config-js.html`.
+  Standard: all kinds ticked (left out). Unticked (shown) I.N. / intercompany / excluded / internal-owner projects go in the **other (i.n. ...)** column of map 01; shown No P2 projects stay in their phase column. An account whose projects are all left out leaves the map. Switching *Real projects only* off shows every kind. *standard* in the ▾ menu goes back to the table above. The subtitle under the map title only mentions these switches when they differ from the standard. Settings: `PROJECT_EXCLUDE`, `INTERNAL_KINDS`, `OWNER_COLS` in `app\core\config-js.html`.
 
-### Touchpoints (tab 05, `app\touch\`)
+### Under the maps: Account listing | Stay in touch policy (`app\touch\`)
 
-For the accounts of the current selection (service units, owners, New DB, Filters):
+The list of accounts under every map (after clicking a box, a row or a column title) has two views, switched at the top left of the list:
 
-1. **Activities by week**: one column per week, **5 weeks before** this week, **this week** (highlighted) and **10 weeks after** (`WEEKS_BEFORE` / `WEEKS_AFTER`). The past weeks show the account's activities from the **activities** sheet of the Excel file (hover for date, type and subject). The next weeks are empty for now: later they will show the to-dos (what should happen next). Only accounts with activities in these weeks are listed; click a name for its details.
-2. **Touchpoints**: read-only tick boxes for **Site visit** and **Publication**, with the publication details. Only accounts with a touchpoint are listed (tick *also accounts without touchpoints* for all).
-   - *Site visit*: an account column with *site visit* in its name that is filled in, or an activity whose type or subject says *site visit*.
-   - *Publication*: the contact person columns `pslab_publication1`, `pslab_publication2`, … A text is shown as the publication; a plain *yes* shows the column name (*Publication 2*).
+- **Account listing** – the table as before.
+- **Stay in touch policy** – the same accounts, one row each:
+  - **Last site visit** (date) and **Pub 1, Pub 2, Pub 3 …** – read-only tick boxes, one per publication column (`pslab_publication1`, `pslab_publication2`, … of the contact persons; ticked when at least one contact person has it filled in).
+  - one column per week: **5 weeks before** this week, **this week** (highlighted), **10 weeks after**. Past weeks show the account's activities from the **activities** sheet, **colour-coded by type** (legend above the table). **Tasks are never shown.** The next weeks are empty for now: later they will show the to-dos.
+  - **Click an account** → the touchpoints pop-up, like a to-do list: ☑ / ☐ Site visit (last date), Pub 1, Pub 2, Pub 3 … each its own checkpoint (with the details), then *What they did* (the activities, newest first) and *Next* (the to-dos, later). *Open account details* goes to the details panel.
 
-The **activities** sheet is found by its name (*activities*); its date, type and subject columns are found by name (`ACT_COLS` in `app\core\config-js.html`). The account details panel also shows the touchpoints and the account's activities.
+Where it comes from: the **activities** sheet is found by its name; its date, type and subject columns by name (`ACT_COLS`). Hidden types: `ACT_HIDE` (tasks). Colours: `ACT_COLORS` / `ACT_OTHER_COLORS`. Site visit: an account column with *site visit* in its name, or an activity whose type or subject says *site visit* (the latest date is shown). All in `app\core\config-js.html`. The account details panel shows the same touchpoints and activities.
 
 ### Account table (under the maps)
 
-- **check to export**: tick it, then tick accounts in the **#** column (the box in the # title ticks the whole table); **Excel** / **PDF** then export only the ticked accounts. Ticks stay while the page is open (*clear* removes them).
-- **touchpoints**: adds the *Site visit* and *Publications* columns (off by default).
+The tools above the list: on the **left** the two views, the search, **Columns** and the **touchpoints** switch; on the **right**, away from them, the **check to export** switch with **Excel** / **PDF**.
+
+- **check to export** (right): switch it on, then tick accounts in the **#** column (the box in the # title ticks the whole list) – in either view; **Excel** / **PDF** then export only the ticked accounts. Ticks stay while the page is open (*clear* removes them).
+- **touchpoints** (left, Account listing only): adds the *Last site visit* and *Pub 1, Pub 2, Pub 3 …* columns (off by default).
 - **City** next to *Country* (the *city* column of the accounts sheet), *Last contact* next to *Last meeting*; *Phase* and *Industry* hidden by default (show them with **Columns**).
 
 ### Other

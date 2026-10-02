@@ -75,17 +75,17 @@ var OPEN_STATUS = /^open$/i;
 //   col   = a flag column of the projects sheet (column name in lower case, letters only, e.g. pslabnop2); the flag
 //           counts when the cell is filled in and is not "no" / "false" / "0"
 //   owner = matched in the project owner column (OWNER_COLS)
-// off = left out by default (standard view). Switching "Real projects only" off shows every kind.
+// off = left out by default (standard view: all of them). Switching "Real projects only" off shows every kind.
 var PROJECT_EXCLUDE = [
   { k: 'inn', t: 'I.N.', name: /(^|[^a-z0-9])i\.\s?n(\.|(?![a-z0-9]))/i, off: 1 },
   { k: 'ico', t: 'Intercompany', name: /inter-?\s?company/i, off: 1 },
   // the file's columns: pslab_nop2 and pslab_excludingfrompipeline (TRUE / FALSE)
   { k: 'nop2', t: 'No P2', col: /nop2/, off: 1 },
-  { k: 'rfp', t: 'Excluded from pipeline', col: /(remov|exclud).*pipeline/, off: 0 },
+  { k: 'rfp', t: 'Excluded from pipeline', col: /(remov|exclud).*pipeline/, off: 1 },
   // internal project owners (OwnerName column): a word of the name STARTS with one of these, so "CYBEL" also
   // matches "Cybelle …", "SAM" matches "Sam …" and "Sammy …", "PSLAB" matches the pslab-… teams.
   // To match a whole name only, write it in full with \b at the end, e.g. sam saad\b
-  { k: 'own', t: 'Internal owner', owner: /\b(roland|cybel|roger|sam|dany daaboul|pslab)/i, off: 0 }
+  { k: 'own', t: 'Internal owner', owner: /\b(roland|cybel|roger|sam|dany daaboul|pslab)/i, off: 1 }
 ];
 var INTERNAL_KINDS = ['inn', 'ico', 'rfp', 'own']; // shown → the "other (i.n. ...)" column on map 01
 
@@ -100,7 +100,7 @@ var P0_PHASE = 'P0';
 // Project date used when an account's "last project" date is empty: per project, the first of these columns that is
 // filled in (datein, else actualclosedate).
 var PROJECT_DATE_COLS = [/datein/, /actualclosedate/];
-// --- Touchpoints view (tab "Touchpoints", app/touch/) ------------------------------------------
+// --- Stay in touch policy (second view of the account list under the maps, app/touch/) ---------------
 // The "activities" sheet of the Excel file (one row per activity). Its columns are found by name (lower case,
 // letters only); for each, the first pattern that matches a column wins.
 var ACT_COLS = {
@@ -108,20 +108,37 @@ var ACT_COLS = {
   type: [/^activitytype/, /activitytypecode/, /^type$/, /type/, /category/],
   subject: [/^subject$/, /subject/, /title/, /description/, /name$/]
 };
-// The weeks shown in the activities table: this many weeks before and after this week.
+// Activities of these types are not shown anywhere (type or, without a type, subject).
+var ACT_HIDE = /\btasks?\b/i;
+// Colour of each activity type (first match wins); other types get a colour from ACT_OTHER_COLORS.
+var ACT_COLORS = [
+  { re: /meeting|appointment/i, bg: '#d6e4fb', fg: '#1f4f9a' },
+  { re: /phone|call/i, bg: '#d8f1df', fg: '#22693a' },
+  { re: /e-?mail/i, bg: '#fdecc8', fg: '#8a5a00' },
+  { re: /site\s*-?\s*visit|visit/i, bg: '#ead9f7', fg: '#6a2f97' },
+  { re: /letter|post|mail/i, bg: '#f9dad7', fg: '#9b2c22' }
+];
+var ACT_OTHER_COLORS = [
+  { bg: '#d4f0f0', fg: '#1d6363' },
+  { bg: '#f6dcec', fg: '#8c2c66' },
+  { bg: '#e8ecd2', fg: '#56611a' },
+  { bg: '#e6e1f5', fg: '#463a8a' }
+];
+// The weeks shown: this many weeks before and after this week.
 var WEEKS_BEFORE = 5;
 var WEEKS_AFTER = 10;
-// Touchpoints (read-only tick boxes). For now: site visit and publications.
-//   site visit  = an account column with "site visit" in its name that is filled in (not no/false/0),
-//                 or an activity whose type or subject says "site visit"
-//   publication = the contact person columns pslab_publication1, pslab_publication2, … (any that is filled in)
+// Touchpoints (read-only tick boxes):
+//   site visit = the latest date of: an account column with "site visit" in its name, or an activity whose type or
+//                subject says "site visit"
+//   Pub 1, Pub 2, Pub 3 … = the contact person columns pslab_publication1, 2, 3 … - each one its own tick box,
+//                ticked when it is filled in (not no/false/0) for at least one contact person of the account
 var SITE_VISIT_COL = /sitevisit/;
 var SITE_VISIT_ACT = /site\s*-?\s*visit/i;
-var PUBLICATION_COL = /^pslabpublication\d*$/;
+var PUBLICATION_COL = /^pslabpublication(\d*)$/;
 
 // --- app state (what is selected right now) - changed by the app, not by hand ---
 // units/pipes = selected service units / pipelines (empty = all),
-// view = which tab (1-4 = maps, 5 = Touchpoints), F / SF = filters, g = the account table (sort, column filters, search).
+// view = which map tab (1-4), F / SF = filters, g = the account table (sort, column filters, search).
 var S = {
   sheets: [],
   acc: [],
@@ -139,9 +156,9 @@ var S = {
   db: 'pipeline', // 'pipeline' = everything, 'newdb' = only accounts validated on or after settings.newDbFrom
   settings: { newDbFrom: '2026-07-01' }, // shared settings from the server (admin panel)
   owners: [], // owners picked under the service units (empty = all owners)
-  tpCols: false, // account table: show the touchpoint columns (Site visit, Publications) - off by default
-  tpAll: false, // Touchpoints view: also list accounts without any touchpoint
-  tpLimit: 100, // Touchpoints view: rows shown in each table (Show more adds rows)
+  listView: 'list', // the account list under the maps: 'list' = Account listing, 'touch' = Stay in touch policy
+  tpCols: false, // Account listing: show the touchpoint columns (Last site visit, Pub 1, Pub 2 …) - off by default
+  tpOpen: null, // Stay in touch policy: the account whose touchpoints pop-up is open (account index)
   pickMode: false, // "check to export" is ticked: tick boxes in the # column of the account table
   pick: {}, // the accounts ticked for export (account id = 1); kept until "clear" or the page is closed
   sel: [], // selected matrix cells ("row§column"); their accounts are listed under the matrix

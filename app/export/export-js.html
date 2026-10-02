@@ -9,7 +9,7 @@ var AUTOTABLE_URL =
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js';
 
 function expRecord(a) {
-  return {
+  var r = {
     Account: a.name,
     'Service unit': unitLabel(a.su),
     Classification: cap(a.cls),
@@ -26,8 +26,7 @@ function expRecord(a) {
     'Post-P1 value': a.postV,
     Currency: a.cur,
     City: a.city,
-    'Site visit': a.tp.visit ? 'yes' : '',
-    Publications: tpPubText(a),
+    'Last site visit': a.tp.visitDate ? fmtXl(a.tp.visitDate) : a.tp.visit ? 'yes' : '',
     'Last meeting': a.lmDate ? fmtXl(a.lmDate) : 'never',
     'Last project': a.lpDate ? fmtXl(a.lpDate) : 'never',
     'Last contact': a.lcDate ? fmtXl(a.lcDate) : 'never',
@@ -43,6 +42,11 @@ function expRecord(a) {
       .filter(Boolean)
       .join(' ')
   };
+  // one column per publication checkpoint (Pub 1, Pub 2 …)
+  pubNums().forEach(function (n) {
+    r['Pub ' + n] = a.tp.pub[n] && a.tp.pub[n].length ? 'yes' + (pubText(a.tp.pub[n]) ? ': ' + pubText(a.tp.pub[n]) : '') : '';
+  });
+  return r;
 }
 
 /** Excel / PDF of the account table. With "check to export" ticked: only the ticked accounts. */

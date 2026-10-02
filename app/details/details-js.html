@@ -295,15 +295,20 @@ function openDetail(i) {
     (a.contacts.length ? groupTables(a.contacts, a) : '<p class="meta">None yet.</p>');
   h += '<h3>Projects (' + pr.length + ')</h3>' + groupTables(pr, a);
   h += '<h3>Social media (' + a.social.length + ')</h3>' + groupTables(a.social, a);
-  // touchpoints (read-only) + the account's activities (the "activities" sheet), see touch/touch-js
+  // touchpoints (read-only: last site visit, Pub 1, Pub 2 …) + the account's activities (no tasks), see touch/touch-js
   h +=
-    '<h3>Touchpoints</h3><div class="kv"><div>Site visit</div><div>' +
+    '<h3>Touchpoints</h3><div class="kv"><div>Last site visit</div><div>' +
     tpBox(a.tp.visit) +
-    (a.tp.visitWhy ? ' ' + esc(a.tp.visitWhy) : '') +
-    '</div><div>Publication</div><div>' +
-    tpBox(a.tp.pubs.length > 0) +
-    (a.tp.pubs.length ? ' ' + esc(tpPubText(a)) : '') +
-    '</div></div>';
+    ' ' +
+    esc(a.tp.visitDate ? fmtXl(a.tp.visitDate) : a.tp.visit ? a.tp.visitWhy : 'none yet') +
+    '</div>' +
+    pubNums()
+      .map(function (n) {
+        var l = a.tp.pub[n] || [];
+        return '<div>Pub ' + n + '</div><div>' + tpBox(l.length > 0) + ' ' + esc(pubText(l)) + '</div>';
+      })
+      .join('') +
+    '</div>';
   if (a.acts.length) h += '<h3>Activities (' + a.acts.length + ')</h3>' + groupTables(a.acts, a);
   if (a.lists.length) h += '<h3>Other linked rows (' + a.lists.length + ')</h3>' + groupTables(a.lists, a);
   // any other column in the file (new query columns show up here automatically)

@@ -139,23 +139,6 @@ var MAPS = {
   }
 };
 
-// tab 05 is not a map: the Touchpoints view (touch/touch-js). This entry only lets the shared code
-// (filters, counts) treat it like "All accounts"; render() hands the drawing to renderTouch().
-MAPS[5] = {
-  title: 'Touchpoints',
-  touch: true,
-  filter: function () {
-    return true;
-  },
-  x: '',
-  y: '',
-  cols: [],
-  rows: [],
-  place: function () {
-    return ['', ''];
-  }
-};
-
 /** Where an account goes on a map: a list of [row, column] (more than one on map 01 with "All projects"). */
 function placesOf(def, a) {
   return def.places ? def.places(a) : [def.place(a)];

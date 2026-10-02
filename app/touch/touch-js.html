@@ -1,16 +1,21 @@
 <script>
 /*
- * TOUCHPOINTS VIEW (tab "Touchpoints", S.view = 5) - website only.
- * Two tables for the accounts of the current selection (service units, owners, New DB, Filters):
- *   1. Activities by week: one column per week, WEEKS_BEFORE weeks before this week and WEEKS_AFTER weeks after
- *      (core/config-js). Past weeks show what the account did (the "activities" sheet of the Excel file).
- *      The future weeks are empty for now: later they will show the to-dos (what should happen next).
- *   2. Touchpoints: read-only tick boxes - site visit, publication (+ the publication details).
- * The data comes from build() in core/data-js: a.activities (actInfo) and a.tp (touchpoints()).
- * The same touchpoints can be added to the account table under the maps (tick "touchpoints" there).
+ * STAY IN TOUCH POLICY - website only.
+ * The second view of the account list under the maps ("Account listing" | "Stay in touch policy", see
+ * listBlock() in table/table-js). It shows the SAME accounts as the listing (the box / row / column picked on the
+ * map, the search in the list, the column filters), one row each:
+ *   - Last site visit and Pub 1, Pub 2, Pub 3 … (read-only tick boxes, one per publication column)
+ *   - one column per week: WEEKS_BEFORE weeks before this week, this week, WEEKS_AFTER weeks after
+ *     (core/config-js). Past weeks: the account's activities from the "activities" sheet, colour-coded by type
+ *     (ACT_COLORS), tasks left out (ACT_HIDE). Next weeks: empty for now - later the to-dos.
+ * Clicking an account opens the touchpoints pop-up: a to-do style checklist (site visit, Pub 1, Pub 2 …) and
+ * what the account did (its activities).
+ * Data: build() in core/data-js → a.activities (actInfo), a.tp (touchpoints()), pubNums().
  */
 
-/** Monday 00:00 of the week of Excel date number d (Excel date numbers count days; 25569 = 1 Jan 1970). */
+/* ---------- weeks ---------- */
+
+/** Monday of the week of Excel date number d (Excel date numbers count days; 25569 = 1 Jan 1970). */
 function weekStart(d) {
   var day = new Date((Math.floor(d) - 25569) * 864e5).getUTCDay(); // 0 = Sunday
   return Math.floor(d) - ((day + 6) % 7);
@@ -23,7 +28,7 @@ function isoWeek(m) {
   return Math.floor((thu - jan1) / 864e5 / 7) + 1;
 }
 
-/** The weeks of the activities table: [{ start (Monday, Excel date number), w (week number), off (−5 … +10) }]. */
+/** The weeks shown: [{ start (Monday, Excel date number), w (week number), off (−5 … +10, 0 = this week) }]. */
 function tpWeeks() {
   var m0 = weekStart(todaySerial()),
     out = [];
@@ -37,176 +42,258 @@ function ddmm(d) {
   return ('0' + x.getUTCDate()).slice(-2) + '/' + ('0' + (x.getUTCMonth() + 1)).slice(-2);
 }
 
-/** The accounts of this view: everything that passes the selection at the top (no map rules). */
-function tpAccounts() {
-  return S.acc.filter(function (a) {
-    return pass(a);
-  });
+/* ---------- small pieces ---------- */
+
+/** A read-only tick box (it shows a touchpoint; it can not be changed here). Drawn with CSS (.tpbox), because
+ *  browsers grey out locked check boxes and a ticked one would hardly show. */
+function tpBox(on) {
+  return '<span class="tpbox' + (on ? ' on' : '') + '" title="' + (on ? 'done' : 'not yet') + '">' + (on ? '✓' : '') + '</span>';
 }
 
-/** Draws the Touchpoints view into #main (called by render() in matrix/matrix-js when S.view === 5). */
-function renderTouch() {
-  var main = document.getElementById('main'),
-    data = tpAccounts(),
-    ft = filterText(),
-    weeks = tpWeeks(),
-    first = weeks[0].start,
-    end = weeks[weeks.length - 1].start + 7,
+/** A colour-coded activity label (ACT_COLORS). full = with the subject (the pop-up). */
+function actChip(x, full) {
+  var c = actColor(x.type);
+  return (
+    '<span class="act" style="background:' +
+    c.bg +
+    ';color:' +
+    c.fg +
+    '" title="' +
+    esc(fmtXl(x.date) + (x.type ? ' · ' + x.type : '') + (x.subject ? ' · ' + x.subject : '')) +
+    '">' +
+    esc(full ? x.type || 'Activity' : x.type || x.subject || 'activity') +
+    '</span>'
+  );
+}
+
+/** The colour legend: the activity types of these accounts. */
+function actLegend(list) {
+  var seen = {};
+  list.forEach(function (a) {
+    a.activities.forEach(function (x) {
+      if (x.type) seen[x.type] = 1;
+    });
+  });
+  var types = Object.keys(seen).sort();
+  return types.length
+    ? '<div class="actleg">' +
+        types
+          .map(function (t) {
+            return actChip({ type: t, date: null, subject: '' });
+          })
+          .join('') +
+        '</div>'
+    : '';
+}
+
+/* ---------- the view ---------- */
+
+/** Draws the Stay in touch policy table into box (the list block's #tw). list = the accounts of the listing. */
+function renderStay(box, list) {
+  var weeks = tpWeeks(),
+    pubs = pubNums(),
     hasActs = S.sheets.some(function (s) {
       return s.role === 'activities';
     });
   var h =
-    '<div class="head"><div><h1>Touchpoints <span class="cnt-title">(' +
-    data.length.toLocaleString('en-GB') +
-    ' accounts)</span></h1><div class="meta">' +
-    esc(scopeText()) +
-    (ft ? ' · ' + esc(ft) : '') +
-    '</div></div></div>';
-
-  // ---- 1. activities by week ----
-  var rows = data
-    .map(function (a) {
-      var inWin = a.activities.filter(function (x) {
-        return x.date != null && x.date >= first && x.date < end;
-      });
-      return { a: a, acts: inWin };
-    })
-    .filter(function (r) {
-      return r.acts.length;
-    })
-    .sort(function (x, y) {
-      return y.acts[0].date - x.acts[0].date || x.a.name.localeCompare(y.a.name);
-    });
-  h +=
-    '<section class="tps"><div class="tps-h"><h2>Activities by week</h2><span class="meta">' +
+    '<div class="stay-info">' +
     (hasActs
-      ? rows.length + ' accounts with activities in these weeks · past weeks = done · next weeks = to-dos (coming later)'
-      : 'No "activities" sheet in the Excel file yet.') +
-    '</span></div>';
-  if (hasActs) {
-    h +=
-      '<div class="tw tpw"><table class="tb tpweeks"><thead><tr><th class="acc">Account</th>' +
-      weeks
-        .map(function (w) {
-          return (
-            '<th class="' +
-            (w.off === 0 ? 'now' : w.off > 0 ? 'next' : '') +
-            '" title="Week of ' +
-            esc(fmtXl(w.start)) +
-            '">W' +
-            w.w +
-            '<small>' +
-            ddmm(w.start) +
-            '</small></th>'
-          );
+      ? 'Past weeks: what the account did (from the activities sheet, no tasks) · this week highlighted · next weeks: to-dos (coming later)'
+      : 'No "activities" sheet in the Excel file yet: the weeks stay empty.') +
+    '</div>' +
+    actLegend(list) +
+    '<div class="tpw"><table class="tb stay"><thead><tr>' +
+    (S.pickMode
+      ? '<th class="cnt" title="Tick / untick every account"><input type="checkbox" ' +
+        (list.length &&
+        list.every(function (a) {
+          return S.pick[a.id];
         })
-        .join('') +
-      '</tr></thead><tbody>';
-    rows.slice(0, S.tpLimit).forEach(function (r) {
-      h +=
-        '<tr><td class="acc"><button class="lnk" onclick="openDetail(' +
-        r.a.i +
-        ')">' +
-        esc(r.a.name) +
-        '</button><small>' +
-        esc(unitLabel(r.a.su)) +
-        '</small></td>' +
-        weeks
-          .map(function (w) {
-            var inW = r.acts.filter(function (x) {
-              return x.date >= w.start && x.date < w.start + 7;
-            });
-            return (
-              '<td class="' +
-              (w.off === 0 ? 'now' : w.off > 0 ? 'next' : '') +
-              '">' +
-              inW
-                .map(function (x) {
-                  return (
-                    '<span class="act" title="' +
-                    esc(fmtXl(x.date) + (x.type ? ' · ' + x.type : '') + (x.subject ? ' · ' + x.subject : '')) +
-                    '">' +
-                    esc(x.type || x.subject || 'activity') +
-                    '</span>'
-                  );
-                })
-                .join('') +
-              '</td>'
-            );
-          })
-          .join('') +
-        '</tr>';
-    });
-    h += '</tbody></table></div>';
-    if (rows.length > S.tpLimit) h += tpMore(rows.length);
-  }
-  h += '</section>';
-
-  // ---- 2. touchpoints (read-only tick boxes) ----
-  var list = data
-    .filter(function (a) {
-      return S.tpAll || a.tp.visit || a.tp.pubs.length;
-    })
-    .sort(function (x, y) {
-      return x.name.localeCompare(y.name);
-    });
-  h +=
-    '<section class="tps"><div class="tps-h"><h2>Touchpoints</h2><span class="meta">' +
-    list.length.toLocaleString('en-GB') +
-    ' accounts</span><label class="pickl"><input type="checkbox" ' +
-    (S.tpAll ? 'checked' : '') +
-    ' onchange="S.tpAll=this.checked;renderTouch()">also accounts without touchpoints</label></div>' +
-    '<div class="tw"><table class="tb tptab"><thead><tr><th class="acc">Account</th><th>Classification</th>' +
-    '<th class="ck">Site visit</th><th class="ck">Publication</th><th>Publication details</th></tr></thead><tbody>' +
-    list
-      .slice(0, S.tpLimit)
-      .map(function (a) {
+          ? 'checked'
+          : '') +
+        ' onchange="pickAll(this.checked)"></th>'
+      : '<th class="cnt">#</th>') +
+    '<th class="acc">Account</th><th class="tpv">Last site visit</th>' +
+    pubs
+      .map(function (n) {
+        return '<th class="ck">Pub ' + n + '</th>';
+      })
+      .join('') +
+    weeks
+      .map(function (w) {
         return (
-          '<tr onclick="openDetail(' +
-          a.i +
-          ')"><td class="acc"><b>' +
-          esc(a.name) +
-          '</b><small>' +
-          esc(unitLabel(a.su)) +
-          '</small></td><td>' +
-          esc(cap(a.cls)) +
-          '</td><td class="ck" title="' +
-          esc(a.tp.visitWhy) +
-          '">' +
-          tpBox(a.tp.visit) +
-          '</td><td class="ck">' +
-          tpBox(a.tp.pubs.length > 0) +
-          '</td><td class="pubs">' +
-          esc(tpPubText(a)) +
-          '</td></tr>'
+          '<th class="wk' +
+          (w.off === 0 ? ' now' : w.off > 0 ? ' next' : '') +
+          '" title="Week of ' +
+          esc(fmtXl(w.start)) +
+          '">W' +
+          w.w +
+          '<small>' +
+          ddmm(w.start) +
+          '</small></th>'
         );
       })
       .join('') +
-    '</tbody></table></div>' +
-    (list.length > S.tpLimit ? tpMore(list.length) : '') +
-    '</section>';
-  main.innerHTML = h;
+    '</tr></thead><tbody>';
+  var first = weeks[0].start,
+    end = weeks[weeks.length - 1].start + 7;
+  list.slice(0, S.g.limit).forEach(function (a, n) {
+    var inWin = a.activities.filter(function (x) {
+      return x.date != null && x.date >= first && x.date < end;
+    });
+    h +=
+      '<tr onclick="openTouch(' +
+      a.i +
+      ')" title="Click: touchpoints of this account">' +
+      (S.pickMode
+        ? '<td class="cnt" onclick="event.stopPropagation()"><input type="checkbox" ' +
+          (S.pick[a.id] ? 'checked' : '') +
+          ' onchange="pickOne(' +
+          a.i +
+          ',this.checked)"></td>'
+        : '<td class="cnt">' + (n + 1) + '</td>') +
+      '<td class="acc"><b>' +
+      esc(a.name) +
+      '</b><small>' +
+      esc([unitLabel(a.su), cap(a.cls)].filter(Boolean).join(' · ')) +
+      '</small></td><td class="tpv">' +
+      (a.tp.visitDate ? esc(fmtXl(a.tp.visitDate)) : a.tp.visit ? 'yes' : '<span class="no">—</span>') +
+      '</td>' +
+      pubs
+        .map(function (p) {
+          var l = a.tp.pub[p] || [];
+          return '<td class="ck" title="' + esc(pubText(l)) + '">' + tpBox(l.length > 0) + '</td>';
+        })
+        .join('') +
+      weeks
+        .map(function (w) {
+          return (
+            '<td class="wk' +
+            (w.off === 0 ? ' now' : w.off > 0 ? ' next' : '') +
+            '">' +
+            inWin
+              .filter(function (x) {
+                return x.date >= w.start && x.date < w.start + 7;
+              })
+              .map(function (x) {
+                return actChip(x);
+              })
+              .join('') +
+            '</td>'
+          );
+        })
+        .join('') +
+      '</tr>';
+  });
+  h += '</tbody></table></div>';
+  if (!list.length) h += '<p class="hint nomatch">No account matches. Try clearing the search or a column filter.</p>';
+  if (list.length > S.g.limit)
+    h +=
+      '<button class="more" onclick="S.g.limit+=200;renderList()">Show more (' +
+      (list.length - S.g.limit).toLocaleString('en-GB') +
+      ' left)</button>';
+  box.innerHTML = h;
+  renderPickCount();
 }
 
-/** A read-only tick box (it shows a touchpoint; it can not be changed here). */
-function tpBox(on) {
-  return '<input type="checkbox" disabled' + (on ? ' checked' : '') + '>';
+/* ---------- the touchpoints pop-up (to-do style) ---------- */
+
+/** Opens the pop-up of account i: the touchpoints as a checklist + what the account did (activities). */
+function openTouch(i) {
+  var a = S.acc[i];
+  if (!a) return;
+  S.tpOpen = i;
+  var pubs = pubNums(),
+    item = function (on, title, sub) {
+      return (
+        '<li class="' +
+        (on ? 'done' : '') +
+        '">' +
+        tpBox(on) +
+        '<div><b>' +
+        esc(title) +
+        '</b>' +
+        (sub ? '<small>' + esc(sub) + '</small>' : '') +
+        '</div></li>'
+      );
+    };
+  var h =
+    '<div class="tpop-h"><div><h3>' +
+    esc(a.name) +
+    '</h3><div class="meta">' +
+    esc([unitLabel(a.su), cap(a.cls), cap(a.category)].filter(Boolean).join(' · ')) +
+    '</div></div><button class="tpop-x" onclick="closeTouch()" title="Close">×</button></div>';
+  // 1. the checklist
+  h +=
+    '<h4>Touchpoints</h4><ul class="todo">' +
+    item(
+      a.tp.visit,
+      'Site visit',
+      a.tp.visitDate
+        ? 'last on ' + fmtXl(a.tp.visitDate) + (a.tp.visitWhy ? ' · ' + a.tp.visitWhy : '')
+        : a.tp.visit
+          ? a.tp.visitWhy
+          : 'no site visit yet'
+    ) +
+    pubs
+      .map(function (n) {
+        var l = a.tp.pub[n] || [];
+        return item(l.length > 0, 'Pub ' + n, l.length ? pubText(l) || 'done' : 'not yet');
+      })
+      .join('') +
+    (pubs.length ? '' : '<li class="none">No publication columns (pslab_publication1, 2 …) in the file yet.</li>') +
+    '</ul>';
+  // 2. what the account did (newest first, colour-coded, no tasks)
+  h +=
+    '<h4>What they did <span>(' +
+    a.activities.length +
+    ')</span></h4>' +
+    (a.activities.length
+      ? '<ul class="acts">' +
+        a.activities
+          .slice(0, 40)
+          .map(function (x) {
+            return (
+              '<li><span class="d">' +
+              esc(x.date ? fmtXl(x.date) : '—') +
+              '</span>' +
+              actChip(x, true) +
+              '<span class="s">' +
+              esc(x.subject) +
+              '</span></li>'
+            );
+          })
+          .join('') +
+        '</ul>' +
+        (a.activities.length > 40 ? '<p class="meta">… and ' + (a.activities.length - 40) + ' older</p>' : '')
+      : '<p class="meta">No activities yet.</p>');
+  // 3. next: the to-dos (later)
+  h +=
+    '<h4>Next</h4><p class="meta">The to-dos (what should happen next) will show here.</p>' +
+    '<div class="tpop-f"><button class="btn ghost" onclick="closeTouch();openDetail(' +
+    a.i +
+    ')">Open account details</button></div>';
+  var box = document.getElementById('tpop');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'tpop';
+    box.className = 'tpop-dim';
+    box.onclick = function (e) {
+      if (e.target === box) closeTouch();
+    };
+    document.body.appendChild(box);
+  }
+  box.innerHTML = '<div class="tpop">' + h + '</div>';
+  box.classList.add('open');
 }
 
-/** "Person: publication · Person: publication" */
-function tpPubText(a) {
-  return a.tp.pubs
-    .map(function (p) {
-      return (p.who ? p.who + ': ' : '') + p.what;
-    })
-    .join(' · ');
+function closeTouch() {
+  S.tpOpen = null;
+  var box = document.getElementById('tpop');
+  if (box) box.classList.remove('open');
 }
 
-function tpMore(n) {
-  return (
-    '<button class="more" onclick="S.tpLimit+=200;renderTouch()">Show more (' +
-    (n - S.tpLimit).toLocaleString('en-GB') +
-    ' left)</button>'
-  );
-}
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') closeTouch();
+});
 </script>
