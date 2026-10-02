@@ -221,6 +221,91 @@ function detSort(th) {
   });
 }
 
+/** The account's contact person names (each once, A→Z). */
+function contactNames(a) {
+  var seen = {};
+  a.contacts.forEach(function (e) {
+    var c = contactNameCol(S.sheets[e.s]),
+      v = c < 0 ? '' : String(cv(e.s, c, e.j) || '').trim();
+    if (v) seen[v] = 1;
+  });
+  return Object.keys(seen).sort(function (x, y) {
+    return x.localeCompare(y);
+  });
+}
+
+/** A web address as a link that opens in a new tab (adds https:// when it is missing). */
+function webLink(u) {
+  var href = /^https?:\/\//i.test(u) ? u : 'https://' + u;
+  return '<a href="' + esc(href) + '" target="_blank" rel="noopener">' + esc(String(u).replace(/^(https?:\/\/)?(www\.)?/i, '').replace(/\/$/, '')) + '</a>';
+}
+
+/** The account's activities (no tasks), newest first: Date | Type (colour) | Subject | the sheet's other filled-in
+ *  columns. Click a column title to sort. Scrolls sideways when it is wider than the panel. */
+function actsTable(a) {
+  var s = S.sheets[a.activities[0].e.s],
+    own = [actCol(s, 'date'), actCol(s, 'type'), actCol(s, 'subject')],
+    more = s.cols
+      .map(function (c, i) {
+        return i;
+      })
+      .filter(function (i) {
+        return (
+          own.indexOf(i) < 0 &&
+          !/id$/.test(s.hk[i]) &&
+          a.activities.some(function (x) {
+            return cv(x.e.s, i, x.e.j) != null;
+          })
+        );
+      });
+  var th = function (t) {
+    return '<th class="ds" onclick="detSort(this)" title="Click to sort, click again to reverse">' + esc(t) + '</th>';
+  };
+  var h =
+    '<div class="tw actw"><table class="tb actt"><thead><tr><th class="cnt">#</th>' +
+    th('Date') +
+    th('Type') +
+    th('Subject') +
+    more
+      .map(function (i) {
+        return th(pretty(s.cols[i].h));
+      })
+      .join('') +
+    '</tr></thead><tbody>';
+  a.activities.forEach(function (x, n) {
+    h +=
+      '<tr><td class="cnt">' +
+      (n + 1) +
+      '</td><td class="d" data-v="' +
+      (x.date == null ? '' : x.date) +
+      '">' +
+      esc(x.date ? fmtXl(x.date) : '—') +
+      '</td><td data-v="' +
+      esc(x.type.toLowerCase()) +
+      '">' +
+      (x.type ? actChip(x, true) : '') +
+      '</td><td class="sub" data-v="' +
+      esc(x.subject.toLowerCase()) +
+      '">' +
+      esc(x.subject) +
+      '</td>' +
+      more
+        .map(function (i) {
+          var v = cv(x.e.s, i, x.e.j);
+          return (
+            '<td data-v="' +
+            esc(v == null ? '' : typeof v === 'number' ? v : String(v).toLowerCase()) +
+            '">' +
+            cellHtml(s.cols[i].h, v, a) +
+            '</td>'
+          );
+        })
+        .join('') +
+      '</tr>';
+  });
+  return h + '</tbody></table></div>';
+}
+
 function locate(a) {
   var v = viewOf(a);
   var def = MAPS[v],
@@ -267,7 +352,9 @@ function openDetail(i) {
     ['Projects in list', a.projects.length + (a.projPhases.length ? ' · ' + a.projPhases.join(', ') : '')],
     ['Social media', a.social.length ? socialSummary(a) : 'no'],
     ['Last validated on', a.validDate ? dateAgo(a.validDate, false, a.validDays) : '—'],
-    ['Account created', dateAgo(num(F(a, 'account_creation'))) || '—']
+    ['Account created', dateAgo(num(F(a, 'account_creation'))) || '—'],
+    // the account's website (S.webKey, see build() in core/data-js) as a link; x[2] = ready-made HTML
+    ['Website', a.website || '—', a.website ? webLink(a.website) : '']
   ];
   var h =
     '<div class="loc"><span>' +
@@ -279,7 +366,9 @@ function openDetail(i) {
     '<h3>Overview</h3><div class="kv">' +
     kv
       .map(function (x) {
-        return '<div>' + esc(x[0]) + '</div><div>' + esc(x[1] === '' || x[1] == null ? '—' : x[1]) + '</div>';
+        return (
+          '<div>' + esc(x[0]) + '</div><div>' + (x[2] || esc(x[1] === '' || x[1] == null ? '—' : x[1])) + '</div>'
+        );
       })
       .join('') +
     '</div>';
@@ -287,12 +376,21 @@ function openDetail(i) {
   var pr = a.projects.slice().sort(function (x, y) {
     return String(cellBy(y.s, y.j, 'Phase_Group')).localeCompare(String(cellBy(x.s, x.j, 'Phase_Group')));
   });
-  // contact persons (Query 5 in the Excel file) - only shown here, not in the big table
+  // contact persons (Query 5 in the Excel file): only their names - only shown here, not in the big table
+  var names = contactNames(a);
   h +=
     '<h3>Contact persons (' +
-    a.contacts.length +
+    names.length +
     ')</h3>' +
-    (a.contacts.length ? groupTables(a.contacts, a) : '<p class="meta">None yet.</p>');
+    (names.length
+      ? '<ul class="names">' +
+        names
+          .map(function (n) {
+            return '<li>' + esc(n) + '</li>';
+          })
+          .join('') +
+        '</ul>'
+      : '<p class="meta">None yet.</p>');
   h += '<h3>Projects (' + pr.length + ')</h3>' + groupTables(pr, a);
   h += '<h3>Social media (' + a.social.length + ')</h3>' + groupTables(a.social, a);
   // touchpoints (read-only: last site visit, Pub 1, Pub 2 …) + the account's activities (no tasks), see touch/touch-js
@@ -309,7 +407,7 @@ function openDetail(i) {
       })
       .join('') +
     '</div>';
-  if (a.acts.length) h += '<h3>Activities (' + a.acts.length + ')</h3>' + groupTables(a.acts, a);
+  if (a.activities.length) h += '<h3>Activities (' + a.activities.length + ')</h3>' + actsTable(a);
   if (a.lists.length) h += '<h3>Other linked rows (' + a.lists.length + ')</h3>' + groupTables(a.lists, a);
   // any other column in the file (new query columns show up here automatically)
   var more = [];
@@ -317,7 +415,7 @@ function openDetail(i) {
     if (s.role !== 'accounts' && s.role !== 'merge') return;
     var j = s.role === 'accounts' ? a.i : a.mr[s.si];
     s.cols.forEach(function (c, ci) {
-      if (DET_HIDE[s.hk[ci]] || s.hk[ci] === S.cityKey || /id$/.test(s.hk[ci]) || /validat/.test(s.hk[ci])) return;
+      if (DET_HIDE[s.hk[ci]] || s.hk[ci] === S.cityKey || s.hk[ci] === S.webKey || /id$/.test(s.hk[ci]) || /validat/.test(s.hk[ci])) return;
       more.push(
         '<div>' +
           esc(pretty(c.h)) +

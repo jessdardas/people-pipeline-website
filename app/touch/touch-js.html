@@ -4,10 +4,11 @@
  * The second view of the account list under the maps ("Account listing" | "Stay in touch policy", see
  * listBlock() in table/table-js). It shows the SAME accounts as the listing (the box / row / column picked on the
  * map, the search in the list, the column filters), one row each:
- *   - Last site visit and Pub 1, Pub 2, Pub 3 … (read-only tick boxes, one per publication column)
  *   - one column per week: WEEKS_BEFORE weeks before this week, this week, WEEKS_AFTER weeks after
  *     (core/config-js). Past weeks: the account's activities from the "activities" sheet, colour-coded by type
  *     (ACT_COLORS), tasks left out (ACT_HIDE). Next weeks: empty for now - later the to-dos.
+ * (The touchpoints - last site visit, Pub 1, Pub 2 … - are in the pop-up, and as columns in Account listing with
+ * the "touchpoints" switch. This view has no export.)
  * Clicking an account opens the touchpoints pop-up: a to-do style checklist (site visit, Pub 1, Pub 2 …) and
  * what the account did (its activities).
  * Data: build() in core/data-js → a.activities (actInfo), a.tp (touchpoints()), pubNums().
@@ -91,7 +92,6 @@ function actLegend(list) {
 /** Draws the Stay in touch policy table into box (the list block's #tw). list = the accounts of the listing. */
 function renderStay(box, list) {
   var weeks = tpWeeks(),
-    pubs = pubNums(),
     hasActs = S.sheets.some(function (s) {
       return s.role === 'activities';
     });
@@ -103,22 +103,7 @@ function renderStay(box, list) {
     '</div>' +
     actLegend(list) +
     '<div class="tpw"><table class="tb stay"><thead><tr>' +
-    (S.pickMode
-      ? '<th class="cnt" title="Tick / untick every account"><input type="checkbox" ' +
-        (list.length &&
-        list.every(function (a) {
-          return S.pick[a.id];
-        })
-          ? 'checked'
-          : '') +
-        ' onchange="pickAll(this.checked)"></th>'
-      : '<th class="cnt">#</th>') +
-    '<th class="acc">Account</th><th class="tpv">Last site visit</th>' +
-    pubs
-      .map(function (n) {
-        return '<th class="ck">Pub ' + n + '</th>';
-      })
-      .join('') +
+    '<th class="cnt">#</th><th class="acc">Account</th>' +
     weeks
       .map(function (w) {
         return (
@@ -145,26 +130,13 @@ function renderStay(box, list) {
       '<tr onclick="openTouch(' +
       a.i +
       ')" title="Click: touchpoints of this account">' +
-      (S.pickMode
-        ? '<td class="cnt" onclick="event.stopPropagation()"><input type="checkbox" ' +
-          (S.pick[a.id] ? 'checked' : '') +
-          ' onchange="pickOne(' +
-          a.i +
-          ',this.checked)"></td>'
-        : '<td class="cnt">' + (n + 1) + '</td>') +
-      '<td class="acc"><b>' +
+      '<td class="cnt">' +
+      (n + 1) +
+      '</td><td class="acc"><b>' +
       esc(a.name) +
       '</b><small>' +
       esc([unitLabel(a.su), cap(a.cls)].filter(Boolean).join(' · ')) +
-      '</small></td><td class="tpv">' +
-      (a.tp.visitDate ? esc(fmtXl(a.tp.visitDate)) : a.tp.visit ? 'yes' : '<span class="no">—</span>') +
-      '</td>' +
-      pubs
-        .map(function (p) {
-          var l = a.tp.pub[p] || [];
-          return '<td class="ck" title="' + esc(pubText(l)) + '">' + tpBox(l.length > 0) + '</td>';
-        })
-        .join('') +
+      '</small></td>' +
       weeks
         .map(function (w) {
           return (
@@ -193,7 +165,6 @@ function renderStay(box, list) {
       (list.length - S.g.limit).toLocaleString('en-GB') +
       ' left)</button>';
   box.innerHTML = h;
-  renderPickCount();
 }
 
 /* ---------- the touchpoints pop-up (to-do style) ---------- */

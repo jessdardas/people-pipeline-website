@@ -278,7 +278,8 @@ function closeCell() {
 }
 
 /** The block under the matrix: title, two views (Account listing / Stay in touch policy), tools, the list.
- *  Left: views, search, Columns, "touchpoints" (listing only). Right, far away: "check to export", Excel, PDF. */
+ *  Account listing - left: views, search, Columns, "touchpoints" switch; right, far away: "check to export", Excel, PDF.
+ *  Stay in touch policy - only the views and the search. */
 function listBlock(meta, closable) {
   return (
     '<div class="inl" id="inl"><div class="inh"><div><h2 id="gCount"></h2><div class="meta">' +
@@ -300,9 +301,12 @@ function listBlock(meta, closable) {
         chip('touchpoints', S.tpCols, 'setTpCols', 'Add the columns Last site visit, Pub 1, Pub 2 …')
       : '') +
     '</div><div class="dt-r">' +
-    chip('check to export', S.pickMode, 'setPickMode', 'Tick accounts in the # column; Excel / PDF then export only those') +
-    '<span class="pickn" id="pickN"></span>' +
-    '<button class="btn" onclick="exportList(\'xlsx\')">Excel</button><button class="btn" onclick="exportList(\'pdf\')">PDF</button>' +
+    // export tools: Account listing only (Stay in touch policy has no export)
+    (S.listView === 'list'
+      ? chip('check to export', S.pickMode, 'setPickMode', 'Tick accounts in the # column; Excel / PDF then export only those') +
+        '<span class="pickn" id="pickN"></span>' +
+        '<button class="btn" onclick="exportList(\'xlsx\')">Excel</button><button class="btn" onclick="exportList(\'pdf\')">PDF</button>'
+      : '') +
     '</div></div><div class="tw" id="tw"></div><div class="hpop" id="hpop"></div><div class="hpop cpop" id="cpop"></div></div>'
   );
 }

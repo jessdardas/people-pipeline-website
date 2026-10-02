@@ -72,8 +72,7 @@ These are only in the website's `app\` (not in the Apps Script project).
 The list of accounts under every map (after clicking a box, a row or a column title) has two views, switched at the top left of the list:
 
 - **Account listing** – the table as before.
-- **Stay in touch policy** – the same accounts, one row each:
-  - **Last site visit** (date) and **Pub 1, Pub 2, Pub 3 …** – read-only tick boxes, one per publication column (`pslab_publication1`, `pslab_publication2`, … of the contact persons; ticked when at least one contact person has it filled in).
+- **Stay in touch policy** – the same accounts, one row each (no export here, and no touchpoint columns: those are in the pop-up and, with the **touchpoints** switch, in Account listing):
   - one column per week: **5 weeks before** this week, **this week** (highlighted), **10 weeks after**. Past weeks show the account's activities from the **activities** sheet, **colour-coded by type** (legend above the table). **Tasks are never shown.** The next weeks are empty for now: later they will show the to-dos.
   - **Click an account** → the touchpoints pop-up, like a to-do list: ☑ / ☐ Site visit (last date), Pub 1, Pub 2, Pub 3 … each its own checkpoint (with the details), then *What they did* (the activities, newest first) and *Next* (the to-dos, later). *Open account details* goes to the details panel.
 
@@ -84,7 +83,8 @@ Where it comes from: the **activities** sheet is found by its name; its date, ty
 The tools above the list: on the **left** the two views, the search, **Columns** and the **touchpoints** switch; on the **right**, away from them, the **check to export** switch with **Excel** / **PDF**.
 
 - **check to export** (right): switch it on, then tick accounts in the **#** column (the box in the # title ticks the whole list) – in either view; **Excel** / **PDF** then export only the ticked accounts. Ticks stay while the page is open (*clear* removes them).
-- **touchpoints** (left, Account listing only): adds the *Last site visit* and *Pub 1, Pub 2, Pub 3 …* columns (off by default).
+- **touchpoints** (left, Account listing only): adds the *Last site visit* and *Pub 1, Pub 2, Pub 3 …* columns (off by default). *Pub N* = the contact person column `pslab_publicationN`, ticked when at least one contact person of the account has it filled in.
+- Stay in touch policy has only the views and the search: no export, no check boxes.
 - **City** next to *Country* (the *city* column of the accounts sheet), *Last contact* next to *Last meeting*; *Phase* and *Industry* hidden by default (show them with **Columns**).
 
 ### Other
@@ -92,7 +92,7 @@ The tools above the list: on the **left** the two views, the search, **Columns**
 - **Search** (top): picking an account opens its details; the map stays as it is (*Show on map* in the details jumps to it).
 - **Last project**: when the file has no last-project date, the latest date of the account's own projects is used: the project's *DateIn*, else its *actualclosedate* (map 02 and the details, which then say *from its projects*). `PROJECT_DATE_COLS` in `app\core\config-js.html`.
 - **New DB**: with New DB on, a small date box next to *validated on or after* changes the date for your view only; nothing is saved (*reset* goes back to the admin date).
-- **Account details**: the project table shows *Project name*, *Phase* and *Status*; **+ columns** adds others (remembered in your browser). Click a column title in any table to sort, click again to reverse.
+- **Account details** (a wider panel): *Website* in the overview (a link; the account column *websiteurl* / *website*); *Contact persons* as names only; the project table shows *Project name*, *Phase* and *Status* (**+ columns** adds others, remembered in your browser); *Activities* as a tidy table – Date, Type (colour), Subject, then the other filled-in columns – that scrolls sideways when it is wider than the panel. Click a column title in any table to sort, click again to reverse.
 
 ## Updating the website after changing the app
 

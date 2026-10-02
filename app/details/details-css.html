@@ -23,7 +23,7 @@
   top: 0;
   right: 0;
   bottom: 0;
-  width: min(680px, 100vw);
+  width: min(860px, 100vw); /* a bit wider: room for the project / activities tables */
   background: var(--surface);
   border-radius: 0;
   box-shadow: var(--shadow-lg);
@@ -199,5 +199,45 @@
   padding: 4px 8px;
   font-size: 12px;
   cursor: pointer;
+}
+/* contact persons: names only (contactNames() in details/details-js) */
+.names {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.names li {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--soft);
+  font-size: 12.5px;
+}
+/* activities (actsTable()): tidy, one line per activity, scrolls sideways when wide */
+.actw {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.det .actt {
+  width: max-content;
+  min-width: 100%;
+}
+.det .actt td,
+.det .actt th {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.det .actt td.sub {
+  white-space: normal;
+  min-width: 220px;
+  max-width: 360px;
+}
+.det .actt td.d {
+  color: var(--text-soft);
+}
+.det .actt td {
+  padding: 6px 8px; /* compact rows */
 }
 </style>

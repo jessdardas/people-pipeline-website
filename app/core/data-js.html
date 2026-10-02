@@ -105,6 +105,15 @@ function build(d) {
     : Object.keys(FIELD).filter(function (k) {
         return /city/.test(k);
       })[0] || null;
+  // the website column: websiteurl / website / webpage / url (account sheets), shown in the details overview
+  S.webKey =
+    ['websiteurl', 'website', 'webpage', 'webadress', 'webaddress', 'url'].filter(function (k) {
+      return FIELD[k];
+    })[0] ||
+    Object.keys(FIELD).filter(function (k) {
+      return /website|webpage/.test(k);
+    })[0] ||
+    null;
   acc.forEach(function (a) {
     a.id = String(F(a, 'accountid') || '');
     a.name = String(F(a, 'name') == null ? '(no name)' : F(a, 'name'));
@@ -115,6 +124,7 @@ function build(d) {
     a.orig = lc(F(a, 'original_category'));
     a.industry = F(a, 'industry') == null ? '' : String(F(a, 'industry')).trim();
     a.country = lc(F(a, 'country'));
+    a.website = S.webKey ? String(F(a, S.webKey) == null ? '' : F(a, S.webKey)).trim() : '';
     a.city = S.cityKey ? String(F(a, S.cityKey) == null ? '' : F(a, S.cityKey)).trim() : ''; // city column (see cityKey below)
     a.su = suKey(F(a, 'serviceunit'));
     a.owner = F(a, 'owneridname') == null ? '' : String(F(a, 'owneridname'));
