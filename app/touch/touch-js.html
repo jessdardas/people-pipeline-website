@@ -1,0 +1,212 @@
+<script>
+/*
+ * TOUCHPOINTS VIEW (tab "Touchpoints", S.view = 5) - website only.
+ * Two tables for the accounts of the current selection (service units, owners, New DB, Filters):
+ *   1. Activities by week: one column per week, WEEKS_BEFORE weeks before this week and WEEKS_AFTER weeks after
+ *      (core/config-js). Past weeks show what the account did (the "activities" sheet of the Excel file).
+ *      The future weeks are empty for now: later they will show the to-dos (what should happen next).
+ *   2. Touchpoints: read-only tick boxes - site visit, publication (+ the publication details).
+ * The data comes from build() in core/data-js: a.activities (actInfo) and a.tp (touchpoints()).
+ * The same touchpoints can be added to the account table under the maps (tick "touchpoints" there).
+ */
+
+/** Monday 00:00 of the week of Excel date number d (Excel date numbers count days; 25569 = 1 Jan 1970). */
+function weekStart(d) {
+  var day = new Date((Math.floor(d) - 25569) * 864e5).getUTCDay(); // 0 = Sunday
+  return Math.floor(d) - ((day + 6) % 7);
+}
+
+/** ISO week number (W1 = the week with the year's first Thursday) of the week starting on Monday m. */
+function isoWeek(m) {
+  var thu = new Date((m + 3 - 25569) * 864e5),
+    jan1 = Date.UTC(thu.getUTCFullYear(), 0, 1);
+  return Math.floor((thu - jan1) / 864e5 / 7) + 1;
+}
+
+/** The weeks of the activities table: [{ start (Monday, Excel date number), w (week number), off (−5 … +10) }]. */
+function tpWeeks() {
+  var m0 = weekStart(todaySerial()),
+    out = [];
+  for (var k = -WEEKS_BEFORE; k <= WEEKS_AFTER; k++) out.push({ start: m0 + 7 * k, w: isoWeek(m0 + 7 * k), off: k });
+  return out;
+}
+
+/** dd/mm of an Excel date number. */
+function ddmm(d) {
+  var x = new Date((d - 25569) * 864e5);
+  return ('0' + x.getUTCDate()).slice(-2) + '/' + ('0' + (x.getUTCMonth() + 1)).slice(-2);
+}
+
+/** The accounts of this view: everything that passes the selection at the top (no map rules). */
+function tpAccounts() {
+  return S.acc.filter(function (a) {
+    return pass(a);
+  });
+}
+
+/** Draws the Touchpoints view into #main (called by render() in matrix/matrix-js when S.view === 5). */
+function renderTouch() {
+  var main = document.getElementById('main'),
+    data = tpAccounts(),
+    ft = filterText(),
+    weeks = tpWeeks(),
+    first = weeks[0].start,
+    end = weeks[weeks.length - 1].start + 7,
+    hasActs = S.sheets.some(function (s) {
+      return s.role === 'activities';
+    });
+  var h =
+    '<div class="head"><div><h1>Touchpoints <span class="cnt-title">(' +
+    data.length.toLocaleString('en-GB') +
+    ' accounts)</span></h1><div class="meta">' +
+    esc(scopeText()) +
+    (ft ? ' · ' + esc(ft) : '') +
+    '</div></div></div>';
+
+  // ---- 1. activities by week ----
+  var rows = data
+    .map(function (a) {
+      var inWin = a.activities.filter(function (x) {
+        return x.date != null && x.date >= first && x.date < end;
+      });
+      return { a: a, acts: inWin };
+    })
+    .filter(function (r) {
+      return r.acts.length;
+    })
+    .sort(function (x, y) {
+      return y.acts[0].date - x.acts[0].date || x.a.name.localeCompare(y.a.name);
+    });
+  h +=
+    '<section class="tps"><div class="tps-h"><h2>Activities by week</h2><span class="meta">' +
+    (hasActs
+      ? rows.length + ' accounts with activities in these weeks · past weeks = done · next weeks = to-dos (coming later)'
+      : 'No "activities" sheet in the Excel file yet.') +
+    '</span></div>';
+  if (hasActs) {
+    h +=
+      '<div class="tw tpw"><table class="tb tpweeks"><thead><tr><th class="acc">Account</th>' +
+      weeks
+        .map(function (w) {
+          return (
+            '<th class="' +
+            (w.off === 0 ? 'now' : w.off > 0 ? 'next' : '') +
+            '" title="Week of ' +
+            esc(fmtXl(w.start)) +
+            '">W' +
+            w.w +
+            '<small>' +
+            ddmm(w.start) +
+            '</small></th>'
+          );
+        })
+        .join('') +
+      '</tr></thead><tbody>';
+    rows.slice(0, S.tpLimit).forEach(function (r) {
+      h +=
+        '<tr><td class="acc"><button class="lnk" onclick="openDetail(' +
+        r.a.i +
+        ')">' +
+        esc(r.a.name) +
+        '</button><small>' +
+        esc(unitLabel(r.a.su)) +
+        '</small></td>' +
+        weeks
+          .map(function (w) {
+            var inW = r.acts.filter(function (x) {
+              return x.date >= w.start && x.date < w.start + 7;
+            });
+            return (
+              '<td class="' +
+              (w.off === 0 ? 'now' : w.off > 0 ? 'next' : '') +
+              '">' +
+              inW
+                .map(function (x) {
+                  return (
+                    '<span class="act" title="' +
+                    esc(fmtXl(x.date) + (x.type ? ' · ' + x.type : '') + (x.subject ? ' · ' + x.subject : '')) +
+                    '">' +
+                    esc(x.type || x.subject || 'activity') +
+                    '</span>'
+                  );
+                })
+                .join('') +
+              '</td>'
+            );
+          })
+          .join('') +
+        '</tr>';
+    });
+    h += '</tbody></table></div>';
+    if (rows.length > S.tpLimit) h += tpMore(rows.length);
+  }
+  h += '</section>';
+
+  // ---- 2. touchpoints (read-only tick boxes) ----
+  var list = data
+    .filter(function (a) {
+      return S.tpAll || a.tp.visit || a.tp.pubs.length;
+    })
+    .sort(function (x, y) {
+      return x.name.localeCompare(y.name);
+    });
+  h +=
+    '<section class="tps"><div class="tps-h"><h2>Touchpoints</h2><span class="meta">' +
+    list.length.toLocaleString('en-GB') +
+    ' accounts</span><label class="pickl"><input type="checkbox" ' +
+    (S.tpAll ? 'checked' : '') +
+    ' onchange="S.tpAll=this.checked;renderTouch()">also accounts without touchpoints</label></div>' +
+    '<div class="tw"><table class="tb tptab"><thead><tr><th class="acc">Account</th><th>Classification</th>' +
+    '<th class="ck">Site visit</th><th class="ck">Publication</th><th>Publication details</th></tr></thead><tbody>' +
+    list
+      .slice(0, S.tpLimit)
+      .map(function (a) {
+        return (
+          '<tr onclick="openDetail(' +
+          a.i +
+          ')"><td class="acc"><b>' +
+          esc(a.name) +
+          '</b><small>' +
+          esc(unitLabel(a.su)) +
+          '</small></td><td>' +
+          esc(cap(a.cls)) +
+          '</td><td class="ck" title="' +
+          esc(a.tp.visitWhy) +
+          '">' +
+          tpBox(a.tp.visit) +
+          '</td><td class="ck">' +
+          tpBox(a.tp.pubs.length > 0) +
+          '</td><td class="pubs">' +
+          esc(tpPubText(a)) +
+          '</td></tr>'
+        );
+      })
+      .join('') +
+    '</tbody></table></div>' +
+    (list.length > S.tpLimit ? tpMore(list.length) : '') +
+    '</section>';
+  main.innerHTML = h;
+}
+
+/** A read-only tick box (it shows a touchpoint; it can not be changed here). */
+function tpBox(on) {
+  return '<input type="checkbox" disabled' + (on ? ' checked' : '') + '>';
+}
+
+/** "Person: publication · Person: publication" */
+function tpPubText(a) {
+  return a.tp.pubs
+    .map(function (p) {
+      return (p.who ? p.who + ': ' : '') + p.what;
+    })
+    .join(' · ');
+}
+
+function tpMore(n) {
+  return (
+    '<button class="more" onclick="S.tpLimit+=200;renderTouch()">Show more (' +
+    (n - S.tpLimit).toLocaleString('en-GB') +
+    ' left)</button>'
+  );
+}
+</script>

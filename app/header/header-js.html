@@ -1,16 +1,19 @@
 <script>
 /* Refresh info, service unit buttons, pipeline menu, tabs */
 /** "Last updated at …" = the last date written in data/refresh-log.txt on the server (site/source.js reads it);
- *  without that file, the time the Excel file last changed. The page reloads the data by itself every hour. */
+ *  without that file, the time the Excel file last changed. ↻ = read the file again now (refresh() in
+ *  core/main-js). The page never refreshes by itself. */
 function renderRefresh() {
   var s = S.source,
     when = s.refreshed || (s.updated ? fmtTs(s.updated) : '');
   document.getElementById('rf').innerHTML = when
     ? '<span title="' +
-      esc((s.name || '') + ' · file last changed ' + fmtTs(s.updated) + ' · reloads automatically every hour') +
+      esc((s.name || '') + ' · file last changed ' + fmtTs(s.updated)) +
       '">Last updated at <b>' +
       esc(when) +
-      '</b></span>'
+      '</b></span><button onclick="refresh()" title="Read the data again now">' +
+      (S.busy ? '…' : '↻') +
+      '</button>'
     : S.busy
       ? 'Loading…'
       : '';
@@ -199,7 +202,11 @@ function renderUnits() {
       .join('') +
     '<button class="far ' +
     (S.view === 4 ? 'on' : '') +
-    '" onclick="setView(4)">All accounts</button>';
+    '" onclick="setView(4)">All accounts</button>' +
+    // tab 05: Touchpoints (touch/touch-js)
+    '<button class="tpt ' +
+    (S.view === 5 ? 'on' : '') +
+    '" onclick="setView(5)">Touchpoints</button>';
 }
 
 function setUnit(u) {

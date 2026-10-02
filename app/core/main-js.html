@@ -1,10 +1,10 @@
 <script>
-/* Loading, refresh and auto refresh — starts the app (keep this file last) */
+/* Loading and the ↻ refresh button — starts the app (keep this file last) */
 
 /**
  * Reads the data from the server and draws everything.
- * o.force  = read the Excel file again (↻ button and the hourly refresh), not the stored copy
- * o.reason = 'first' | 'manual' | 'auto' - decides which message is shown
+ * o.force  = read the Excel file again (↻ button), not the stored copy
+ * o.reason = 'first' | 'manual' - decides which message is shown
  */
 function load(o) {
   o = o || {};
@@ -25,7 +25,6 @@ function load(o) {
       var same = keep.hash && keep.hash === S.source.hash;
       if (o.reason === 'manual')
         toast(same ? 'No changes — the data is up to date' : 'Updated — the new data is loaded');
-      else if (o.reason === 'auto' && keep.hash && !same) toast('Data updated automatically');
     })
     .catch(function (e) {
       S.busy = false;
@@ -42,21 +41,8 @@ function refresh() {
   load({ force: true, reason: 'manual' });
 }
 
-// every 10m : read the Excel file again (the time at the top changes even when nothing changed)
-// Check for new data every 10 minutes
-setInterval(() => {
-  window.location.reload();
-}, 10 * 60 * 1000);
-
-// every 10 minutes: if a new file was uploaded in the meantime, load it straight away
-setInterval(function () {
-  if (S.busy) return;
-  api('getStamp', [])
-    .then(function (st) {
-      if (st.updated !== S.source.updated) load({ reason: 'auto' });
-    })
-    .catch(function () {});
-}, 10 * 60 * 1000);
+// No automatic refresh: the data is read when the page opens and when the ↻ button next to
+// "Last updated at" is clicked (refresh() above). Nothing reloads by itself.
 
 document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') {

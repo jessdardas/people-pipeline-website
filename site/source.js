@@ -13,7 +13,12 @@ var SITE = {
   refreshFile: 'data/refresh-log.txt', // the refresh log: its last date is shown as "Last updated at", as written
   settingsApi: 'api/settings.ashx',
   settingsFile: 'data/settings.json',
-  last: null // hash of the last data read
+  last: null, // hash of the last data read
+  // Faster opening: the data read from the Excel file is kept in this browser (IndexedDB) together with the
+  // file's date + size. Next time, if the file on the server has the same date + size, the kept copy is used
+  // and the Excel file is not downloaded or decoded again. Change cacheVersion when server/Pipeline.js changes
+  // how the file is read, so every browser reads the file again once.
+  cacheVersion: '2026-10-02b'
 };
 
 // exports use the copies of the libraries inside the website (works without internet)
@@ -35,17 +40,119 @@ function api(fn, args) {
   return Promise.reject(new Error('Unknown call ' + fn));
 }
 
-/** Reads the Excel file now (never from the browser cache). */
-function siteRead() {
+/** The Excel file's "stamp" on the server: date + size (+ ETag), without downloading it. */
+function siteFileStamp() {
+  return fetch(encodeURI(SITE.file) + '?t=' + Date.now(), { method: 'HEAD', cache: 'no-store' }).then(function (r) {
+    if (!r.ok) throw new Error('The Excel file "' + SITE.file + '" was not found on the server (' + r.status + ')');
+    return [SITE.cacheVersion, r.headers.get('Last-Modified') || '', r.headers.get('Content-Length') || '', r.headers.get('ETag') || ''].join('|');
+  });
+}
+
+/** Loads the Excel reader (SheetJS, ~900 KB) the first time it is needed - not on every opening. */
+function siteXlsx() {
+  if (window.XLSX && XLSX.read) return Promise.resolve();
+  if (!SITE._xlsx)
+    SITE._xlsx = new Promise(function (ok, fail) {
+      var el = document.createElement('script');
+      el.src = 'site/vendor/xlsx.full.min.js';
+      el.onload = ok;
+      el.onerror = function () {
+        SITE._xlsx = null;
+        fail(new Error('Could not load site/vendor/xlsx.full.min.js'));
+      };
+      document.head.appendChild(el);
+    });
+  return SITE._xlsx;
+}
+
+/** Downloads the Excel file (never from the browser's own HTTP cache). */
+function siteDownload() {
   return fetch(encodeURI(SITE.file) + '?t=' + Date.now(), { cache: 'no-store' }).then(function (r) {
     if (!r.ok) throw new Error('The Excel file "' + SITE.file + '" was not found on the server (' + r.status + ')');
     var lm = Date.parse(r.headers.get('Last-Modified') || '') || Date.now();
     return r.arrayBuffer().then(function (buf) {
-      var wb = XLSX.read(buf, { type: 'array' });
-      var sheets = wb.SheetNames.map(function (n) {
-        return { name: n, rows: XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' }) };
+      return { buf: buf, lm: lm };
+    });
+  });
+}
+
+/** Reads the Excel file now: download + Excel reader in parallel, then decode and turn into the page's data. */
+function siteRead() {
+  return Promise.all([siteXlsx(), siteDownload()]).then(function (r) {
+    var got = r[1];
+    // only the cell values are needed: skipping formats, styles and formulas makes decoding ~40% faster
+    var wb = XLSX.read(got.buf, {
+      type: 'array',
+      dense: true,
+      cellText: false,
+      cellHTML: false,
+      cellFormula: false,
+      cellStyles: false,
+      cellNF: false,
+      cellDates: false
+    });
+    var sheets = wb.SheetNames.map(function (n) {
+      return { name: n, rows: XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' }) };
+    });
+    return buildFromSheets_(sheets, { name: 'people pipeline.xlsx', id: SITE.file, updated: got.lm, loaded: Date.now() });
+  });
+}
+
+/* ---- the copy kept in this browser (IndexedDB). Every step may fail (private window, blocked storage):
+        then the file is simply read as normal. ---- */
+function siteDb() {
+  return new Promise(function (ok, fail) {
+    var rq = indexedDB.open('people-pipeline', 1);
+    rq.onupgradeneeded = function () {
+      rq.result.createObjectStore('data');
+    };
+    rq.onsuccess = function () {
+      ok(rq.result);
+    };
+    rq.onerror = function () {
+      fail(rq.error);
+    };
+  });
+}
+
+function siteCacheGet() {
+  return siteDb()
+    .then(function (db) {
+      return new Promise(function (ok) {
+        var rq = db.transaction('data').objectStore('data').get('last');
+        rq.onsuccess = function () {
+          ok(rq.result || null);
+        };
+        rq.onerror = function () {
+          ok(null);
+        };
       });
-      return buildFromSheets_(sheets, { name: 'people pipeline.xlsx', id: SITE.file, updated: lm, loaded: Date.now() });
+    })
+    .catch(function () {
+      return null;
+    });
+}
+
+function siteCachePut(stamp, d) {
+  return siteDb()
+    .then(function (db) {
+      db.transaction('data', 'readwrite').objectStore('data').put({ stamp: stamp, d: d }, 'last');
+    })
+    .catch(function () {});
+}
+
+/** The data: the kept copy when the file did not change since it was kept, else the file read now. */
+function siteReadFast() {
+  return Promise.all([siteFileStamp(), siteCacheGet()]).then(function (r) {
+    var stamp = r[0],
+      kept = r[1];
+    if (kept && kept.stamp === stamp && kept.d) {
+      kept.d.source.loaded = Date.now();
+      return kept.d;
+    }
+    return siteRead().then(function (d) {
+      siteCachePut(stamp, d);
+      return d;
     });
   });
 }
@@ -109,7 +216,7 @@ function siteRefreshed() {
 }
 
 function siteData() {
-  return Promise.all([siteRead(), siteSettings(), siteRefreshed()]).then(function (r) {
+  return Promise.all([siteReadFast(), siteSettings(), siteRefreshed()]).then(function (r) {
     var d = r[0];
     d.source.refreshed = r[2];
     d.source.changed = SITE.last !== null && SITE.last !== d.source.hash;

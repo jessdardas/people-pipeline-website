@@ -36,7 +36,7 @@ var CATEGORY_ROWS = [
 var MAPS = {
   1: {
     title: 'Current pipeline',
-    // an account whose open projects are ALL left out by "Real projects only" leaves the map
+    // an account whose open projects are ALL left out ("Without P0" / "Real projects only") leaves the map
     filter: function (a) {
       return a.cls === 'current pipeline' && (!a.open.length || keptOpen(a).length > 0);
     },
@@ -50,8 +50,12 @@ var MAPS = {
       { k: 'noopen', t: 'No open project', opt: 1 }
     ]),
     rows: CATEGORY_ROWS,
+    // "Without P0" switch on: no P0 column at all
+    hideCol: function (c) {
+      return S.noP0 && c.k === P0_PHASE;
+    },
     // an account goes in EVERY phase column where it has an open project (once per phase); its I.N.
-    // I.N. / test / intercompany projects that are shown (switch off, or kind unticked) go in "Internal / test";
+    // shown I.N. / intercompany / excluded-from-pipeline / internal-owner projects (INTERNAL_KINDS) go in "other";
     // no open project at all = "No open project".
     // Totals count each account once (see render() in matrix/matrix-js)
     places: function (a) {
@@ -71,7 +75,7 @@ var MAPS = {
   },
   2: {
     title: 'Past clients',
-    // an account whose projects are ALL left out by "Real projects only" leaves the map
+    // an account whose projects are ALL left out ("Without P0" / "Real projects only") leaves the map
     filter: function (a) {
       return a.cls === 'past client' && (!a.pj.length || keptProjects(a, false).length > 0);
     },
@@ -132,6 +136,23 @@ var MAPS = {
     place: function (a) {
       return [catKey(a.category), a.cls];
     }
+  }
+};
+
+// tab 05 is not a map: the Touchpoints view (touch/touch-js). This entry only lets the shared code
+// (filters, counts) treat it like "All accounts"; render() hands the drawing to renderTouch().
+MAPS[5] = {
+  title: 'Touchpoints',
+  touch: true,
+  filter: function () {
+    return true;
+  },
+  x: '',
+  y: '',
+  cols: [],
+  rows: [],
+  place: function () {
+    return ['', ''];
   }
 };
 

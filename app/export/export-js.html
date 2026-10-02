@@ -25,6 +25,9 @@ function expRecord(a) {
     'Post-P1 projects': a.postN,
     'Post-P1 value': a.postV,
     Currency: a.cur,
+    City: a.city,
+    'Site visit': a.tp.visit ? 'yes' : '',
+    Publications: tpPubText(a),
     'Last meeting': a.lmDate ? fmtXl(a.lmDate) : 'never',
     'Last project': a.lpDate ? fmtXl(a.lpDate) : 'never',
     'Last contact': a.lcDate ? fmtXl(a.lcDate) : 'never',
@@ -42,7 +45,13 @@ function expRecord(a) {
   };
 }
 
+/** Excel / PDF of the account table. With "check to export" ticked: only the ticked accounts. */
 function exportList(fmt) {
+  if (S.pickMode) {
+    var picked = pickedList();
+    if (!picked.length) return toast('Tick the accounts to export first (boxes in the # column)');
+    return doExport(fmt, picked, S.listMeta + ' › ' + picked.length + ' checked');
+  }
   doExport(fmt, S._shown || shownList(), S.listMeta);
 }
 

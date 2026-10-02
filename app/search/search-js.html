@@ -1,5 +1,5 @@
 <script>
-/* Search box at the top + jump to an account on the map */
+/* Search box at the top: picking an account opens its details (the "Show on map" button in there jumps to the map) */
 function gSearch() {
   var q = document.getElementById('gq').value.toLowerCase().trim(),
     box = document.getElementById('gres');
@@ -21,7 +21,7 @@ function gSearch() {
         return (
           '<button class="' +
           (i === 0 ? 'act' : '') +
-          '" onclick="goTo(' +
+          '" onclick="openFound(' +
           a.i +
           ')"><b>' +
           esc(a.name) +
@@ -49,10 +49,17 @@ function gKey(e) {
       b.classList.toggle('act', i === S.gAct);
     });
   } else if (e.key === 'Enter') {
-    if (S.gres && S.gres[S.gAct]) goTo(S.gres[S.gAct].i);
+    if (S.gres && S.gres[S.gAct]) openFound(S.gres[S.gAct].i);
   } else if (e.key === 'Escape') box.classList.remove('open');
 }
 
+/** A search result was picked: open the account's details (the map stays as it is). */
+function openFound(i) {
+  document.getElementById('gres').classList.remove('open');
+  openDetail(i);
+}
+
+/** "Show on map" (details panel): go to the account's box on its map, loosening filters that would hide it. */
 function goTo(i) {
   var a = S.acc[i];
   if (!a) return;

@@ -34,8 +34,8 @@
           var add = parts[i];
           if (n === 'app/core/main-js') {
             // the website's own parts, loaded right before the app starts
+            // (the Excel reader site/vendor/xlsx.full.min.js is only loaded when the file must be decoded: site/source.js)
             add =
-              '<script src="site/vendor/xlsx.full.min.js"><\/script>' +
               '<script src="server/Pipeline.js"><\/script>' +
               '<script src="site/source.js"><\/script>' +
               add;

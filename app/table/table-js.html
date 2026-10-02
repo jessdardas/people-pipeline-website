@@ -48,6 +48,13 @@ var TCOLS = [
     }
   },
   {
+    k: 'city',
+    t: 'City',
+    g: function (a) {
+      return a.city;
+    }
+  },
+  {
     k: 'owner',
     t: 'Owner',
     g: function (a) {
@@ -136,6 +143,26 @@ var TCOLS = [
     }
   }
 ];
+
+// Touchpoint columns: only shown when "touchpoints" is ticked above the table (S.tpCols, off by default).
+TCOLS.push(
+  {
+    k: 'tpvisit',
+    t: 'Site visit',
+    tp: 1,
+    g: function (a) {
+      return a.tp.visit ? '✓' : '';
+    }
+  },
+  {
+    k: 'tppub',
+    t: 'Publications',
+    tp: 1,
+    g: function (a) {
+      return tpPubText(a);
+    }
+  }
+);
 
 function lmBucket(d) {
   return d == null
@@ -249,7 +276,15 @@ function listBlock(meta, closable) {
     '</div></div>' +
     '<div class="dtools"><input id="dSearch" placeholder="Search in this table…" value="' +
     esc(S.g.q) +
-    '" oninput="S.g.q=this.value;S.g.limit=100;renderList()"><button class="btn ghost" onclick="toggleColPanel()" title="Show, hide, order and rename the columns">Columns</button><button class="btn" onclick="exportList(\'xlsx\')">Excel</button><button class="btn" onclick="exportList(\'pdf\')">PDF</button>' +
+    '" oninput="S.g.q=this.value;S.g.limit=100;renderList()">' +
+    // "check to export": tick boxes appear in the # column; Excel / PDF then export only the ticked accounts
+    '<label class="pickl" title="Tick accounts in the # column; Excel / PDF then export only those"><input type="checkbox" ' +
+    (S.pickMode ? 'checked' : '') +
+    ' onchange="setPickMode(this.checked)">check to export</label><span class="pickn" id="pickN"></span>' +
+    '<label class="pickl" title="Add the touchpoint columns (site visit, publications)"><input type="checkbox" ' +
+    (S.tpCols ? 'checked' : '') +
+    ' onchange="setTpCols(this.checked)">touchpoints</label>' +
+    '<button class="btn ghost" onclick="toggleColPanel()" title="Show, hide, order and rename the columns">Columns</button><button class="btn" onclick="exportList(\'xlsx\')">Excel</button><button class="btn" onclick="exportList(\'pdf\')">PDF</button>' +
     (closable ? '<button class="x2" onclick="closeCell()" title="Close">×</button>' : '') +
     '</div></div><div class="tw" id="tw"></div><div class="hpop" id="hpop"></div><div class="hpop cpop" id="cpop"></div></div>'
   );
@@ -258,7 +293,7 @@ function listBlock(meta, closable) {
 function gridRows(skipK) {
   var q = (S.g.q || '').toLowerCase().trim();
   var list = S.list.filter(function (a) {
-    if (q && a.lname.indexOf(q) < 0 && a.owner.toLowerCase().indexOf(q) < 0 && a.country.indexOf(q) < 0)
+    if (q && a.lname.indexOf(q) < 0 && a.owner.toLowerCase().indexOf(q) < 0 && a.country.indexOf(q) < 0 && a.city.toLowerCase().indexOf(q) < 0)
       return false;
     for (var k in S.g.cf) {
       if (k === skipK) continue;
@@ -293,7 +328,19 @@ function renderList() {
   var c = document.getElementById('gCount');
   if (c) c.textContent = list.length.toLocaleString('en-GB') + ' account' + (list.length === 1 ? '' : 's');
   var h =
-    '<table class="tb"><thead><tr><th class="cnt" title="Row number">#</th>' +
+    '<table class="tb' +
+    (S.pickMode ? ' picking' : '') +
+    '"><thead><tr>' +
+    (S.pickMode
+      ? '<th class="cnt" onclick="event.stopPropagation()" title="Tick / untick every account in this table"><input type="checkbox" ' +
+        (list.length &&
+        list.every(function (a) {
+          return S.pick[a.id];
+        })
+          ? 'checked'
+          : '') +
+        ' onchange="pickAll(this.checked)"></th>'
+      : '<th class="cnt" title="Row number">#</th>') +
     cols
       .map(function (c) {
         var f = S.g.cf[c.k] && S.g.cf[c.k].length,
@@ -323,9 +370,14 @@ function renderList() {
       (S.hl && S.hl.id === a.id ? 'hl' : '') +
       '" onclick="openDetail(' +
       a.i +
-      ')"><td class="cnt">' +
-      (n + 1) +
-      '</td>' +
+      ')">' +
+      (S.pickMode
+        ? '<td class="cnt" onclick="event.stopPropagation()"><input type="checkbox" ' +
+          (S.pick[a.id] ? 'checked' : '') +
+          ' onchange="pickOne(' +
+          a.i +
+          ',this.checked)"></td>'
+        : '<td class="cnt">' + (n + 1) + '</td>') +
       cols.map(function (c) {
         var v = c.g(a);
         return (
@@ -349,8 +401,58 @@ function renderList() {
       (list.length - S.g.limit).toLocaleString('en-GB') +
       ' left)</button>';
   box.innerHTML = h;
+  renderPickCount();
   var hl = box.querySelector('tr.hl');
   if (hl) hl.scrollIntoView({ block: 'nearest' });
+}
+
+/* ---------- "check to export": tick accounts, then Excel / PDF export only those ---------- */
+function setPickMode(on) {
+  S.pickMode = on;
+  renderList();
+}
+
+function pickOne(i, on) {
+  var a = S.acc[i];
+  if (on) S.pick[a.id] = 1;
+  else delete S.pick[a.id];
+  renderPickCount();
+}
+
+/** The box in the # header: tick / untick every account of the table (after its search and column filters). */
+function pickAll(on) {
+  shownList().forEach(function (a) {
+    if (on) S.pick[a.id] = 1;
+    else delete S.pick[a.id];
+  });
+  renderList();
+}
+
+function clearPicks() {
+  S.pick = {};
+  renderList();
+}
+
+/** The accounts ticked for export, in the order of the table (ticked ones from other boxes after them). */
+function pickedList() {
+  var seen = {},
+    out = [];
+  (S._shown || []).concat(S.acc).forEach(function (a) {
+    if (S.pick[a.id] && !seen[a.id]) {
+      seen[a.id] = 1;
+      out.push(a);
+    }
+  });
+  return out;
+}
+
+function renderPickCount() {
+  var el = document.getElementById('pickN');
+  if (!el) return;
+  var n = Object.keys(S.pick).length;
+  el.innerHTML = S.pickMode
+    ? n + ' checked' + (n ? ' · <button class="lnk" onclick="clearPicks()">clear</button>' : '')
+    : '';
 }
 
 /* header menu: sort + filter by the values of that column */
@@ -510,8 +612,14 @@ function orderedCols() {
 
 function visibleCols() {
   return orderedCols().filter(function (c) {
-    return !TCFG.hidden[c.k];
+    return c.tp ? S.tpCols : !TCFG.hidden[c.k]; // touchpoint columns follow the "touchpoints" box only
   });
+}
+
+/** "touchpoints" box above the account table: add / remove the touchpoint columns. */
+function setTpCols(on) {
+  S.tpCols = on;
+  renderList();
 }
 
 function toggleColPanel() {
@@ -523,7 +631,9 @@ function toggleColPanel() {
 
 function renderColPanel() {
   var p = document.getElementById('cpop'),
-    cols = orderedCols();
+    cols = orderedCols().filter(function (c) {
+      return !c.tp; // the touchpoint columns are switched with the "touchpoints" box instead
+    });
   p.innerHTML =
     '<div class="fp-t">Columns<span class="ml"></span><button class="lnk" onclick="resetCols()">Reset</button><button class="lnk" onclick="toggleColPanel()">Close</button></div>' +
     '<div class="cols-list">' +

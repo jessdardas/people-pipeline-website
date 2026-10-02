@@ -1,0 +1,86 @@
+<style>
+/* Touchpoints view (touch/touch-js.html): activities by week + touchpoint tick boxes */
+.tps {
+  margin-top: 22px;
+}
+.tps-h {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.tps-h h2 {
+  font-size: 16px;
+  margin: 0;
+}
+.tps-h .pickl {
+  margin-left: auto;
+}
+.tps .tb td.acc small {
+  display: block;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+.tps .tb td.acc .lnk {
+  font-weight: 600;
+  text-align: left;
+  color: var(--text);
+}
+/* weeks table: narrow week columns, this week highlighted, next weeks (to-dos later) lighter */
+.tpweeks {
+  table-layout: fixed; /* every week column the same width */
+  min-width: 1100px;
+}
+.tpweeks th,
+.tpweeks td {
+  text-align: center;
+  vertical-align: top;
+}
+.tpweeks th.acc,
+.tpweeks td.acc {
+  text-align: left;
+  width: 190px;
+}
+.tpweeks th small {
+  display: block;
+  font-weight: 400;
+  font-size: 10px;
+  color: var(--text-faint);
+}
+.tpweeks .now {
+  background: #eef3fb;
+}
+.tpweeks .next {
+  background: #fafafa;
+  color: var(--text-faint);
+}
+.tpweeks .act {
+  display: block;
+  margin: 2px 0;
+  padding: 2px 5px;
+  border-radius: 5px;
+  background: #dbe6f6;
+  font-size: 10.5px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
+}
+.tpw {
+  overflow-x: auto;
+}
+/* touchpoints table: centred read-only tick boxes */
+.tptab .ck {
+  text-align: center;
+  width: 90px;
+}
+.tptab td.pubs {
+  font-size: 12px;
+  color: var(--text-soft);
+}
+.tptab tbody tr {
+  cursor: pointer;
+}
+</style>

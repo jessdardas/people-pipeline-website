@@ -63,6 +63,8 @@ function sheetRole_(name, hk) {
   if (has('opportunityid')) return 'projects';
   if (has('contactid') || has('contact') || has('contactperson') || /^contact/.test(n) || /query5$/.test(n)) return 'contacts';
   if (hk.some(function (h) { return /platform/.test(h); })) return 'social'; // prettier-ignore
+  // the "activities" sheet (website: Touchpoints view): one row per activity, never combined per account
+  if (n === 'activities' && !hk.some(function (h) { return ACCOUNT_LEVEL_COLS.indexOf(h) >= 0; })) return 'activities'; // prettier-ignore
   return 'merge'; // decided per account later: several rows → combined, or kept as a list if nothing is account-level
 }
 

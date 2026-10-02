@@ -65,24 +65,60 @@ var PRJ_LABELS = ['None', '1', '2–5', '6–10', '11+'];
 // status column counts every project as open.
 var OPEN_STATUS = /^open$/i;
 
-// "Real projects only" (small switch above maps 01 and 02, ON by default): these kinds of projects are left out.
-// name = matched in the project name (or the account name); col = the project sheet column (letters only, lower
-// case) with the flag - a flag counts when it is filled in and not "no" / "false" / "0".
-// On map 01, the I.N. / test / intercompany projects that are NOT left out go in the "Internal / test" column.
+// "Real projects only" (small switch above maps 01 and 02, ON by default) and its ▾ menu.
+// Each kind of project below can be LEFT OUT (ticked in the ▾ menu) or SHOWN:
+//   - left out: the project does not count; an account whose projects are all left out leaves the map
+//   - shown:    I.N., intercompany, excluded-from-pipeline and internal-owner projects (INTERNAL_KINDS) go in
+//               the "other" column of map 01; No P2 projects stay in their phase column
+// How a kind is recognised:
+//   name  = matched in the project name (or the account name)
+//   col   = a flag column of the projects sheet (column name in lower case, letters only); the flag counts when the
+//           cell is filled in and is not "no" / "false" / "0"
+//   owner = matched in the project owner column (OWNER_COLS)
+// off = left out by default (standard view). Switching "Real projects only" off shows every kind.
 var PROJECT_EXCLUDE = [
-  { k: 'inn', t: 'I.N.', name: /(^|[^a-z0-9])i\.\s?n(\.|(?![a-z0-9]))/i },
-  { k: 'ico', t: 'Intercompany', name: /inter-?\s?company/i },
-  { k: 'nop2', t: 'No P2', col: /^nop2/ },
-  { k: 'rfp', t: 'Excluded from pipeline', col: /(remove|exclude).*pipeline/ }
+  { k: 'inn', t: 'I.N.', name: /(^|[^a-z0-9])i\.\s?n(\.|(?![a-z0-9]))/i, off: 1 },
+  { k: 'ico', t: 'Intercompany', name: /inter-?\s?company/i, off: 1 },
+  { k: 'nop2', t: 'No P2', col: /^nop2/, off: 1 },
+  { k: 'rfp', t: 'Excluded from pipeline', col: /(remove|exclude).*pipeline/, off: 0 },
+  // internal project owners: whole words, so "SAM" matches "Sam Haddad" but not "Samir"
+  { k: 'own', t: 'Internal owner', owner: /\b(roland|cybel|roger|sam|dany daaboul|pslab)\b/i, off: 0 }
 ];
-var INTERNAL_KINDS = ['inn', 'ico']; // the "other (i.n. ...)" column on map 01
+var INTERNAL_KINDS = ['inn', 'ico', 'rfp', 'own']; // shown → the "other (i.n. ...)" column on map 01
+
+// The project owner column of the projects sheet (column names in lower case, letters only): the first of these
+// patterns that matches a column wins ("project owner" before any other column with "owner" in its name).
+var OWNER_COLS = [/projectowner/, /owner/];
+
+// "Without P0" switch (just above "Real projects only", ON by default): P0 projects are left out on maps 01 and 02
+// (the P0 column disappears; an account whose projects are all P0 leaves the map).
+var P0_PHASE = 'P0';
 
 // Project date used when an account's "last project" date is empty: per project, the first of these columns that is
 // filled in (datein, else actualclosedate).
 var PROJECT_DATE_COLS = [/datein/, /actualclosedate/];
+// --- Touchpoints view (tab "Touchpoints", app/touch/) ------------------------------------------
+// The "activities" sheet of the Excel file (one row per activity). Its columns are found by name (lower case,
+// letters only); for each, the first pattern that matches a column wins.
+var ACT_COLS = {
+  date: [/actualend/, /actualstart/, /scheduledstart/, /scheduledend/, /^(date|activitydate)$/, /date/, /createdon/],
+  type: [/^activitytype/, /activitytypecode/, /^type$/, /type/, /category/],
+  subject: [/^subject$/, /subject/, /title/, /description/, /name$/]
+};
+// The weeks shown in the activities table: this many weeks before and after this week.
+var WEEKS_BEFORE = 5;
+var WEEKS_AFTER = 10;
+// Touchpoints (read-only tick boxes). For now: site visit and publications.
+//   site visit  = an account column with "site visit" in its name that is filled in (not no/false/0),
+//                 or an activity whose type or subject says "site visit"
+//   publication = the contact person columns pslab_publication1, pslab_publication2, … (any that is filled in)
+var SITE_VISIT_COL = /sitevisit/;
+var SITE_VISIT_ACT = /site\s*-?\s*visit/i;
+var PUBLICATION_COL = /^pslabpublication\d*$/;
+
 // --- app state (what is selected right now) - changed by the app, not by hand ---
 // units/pipes = selected service units / pipelines (empty = all),
-// view = which map tab (1-4), F / SF = filters, g = the account table (sort, column filters, search).
+// view = which tab (1-4 = maps, 5 = Touchpoints), F / SF = filters, g = the account table (sort, column filters, search).
 var S = {
   sheets: [],
   acc: [],
@@ -92,13 +128,19 @@ var S = {
   units: [],
   pipes: [],
   clean: true, // "Real projects only" switch (maps 01 + 02)
-  px: { inn: 1, ico: 1, nop2: 1, rfp: 1 }, // which PROJECT_EXCLUDE kinds that switch leaves out
+  px: {}, // which PROJECT_EXCLUDE kinds that switch leaves out (filled from their "off" setting in build())
+  noP0: true, // "Without P0" switch (maps 01 + 02)
   xm: false, // its small menu is open
   dbFrom: '', // New DB: a date picked for this view only (not saved); '' = the admin date
   view: 1,
   db: 'pipeline', // 'pipeline' = everything, 'newdb' = only accounts validated on or after settings.newDbFrom
   settings: { newDbFrom: '2026-07-01' }, // shared settings from the server (admin panel)
   owners: [], // owners picked under the service units (empty = all owners)
+  tpCols: false, // account table: show the touchpoint columns (Site visit, Publications) - off by default
+  tpAll: false, // Touchpoints view: also list accounts without any touchpoint
+  tpLimit: 100, // Touchpoints view: rows shown in each table (Show more adds rows)
+  pickMode: false, // "check to export" is ticked: tick boxes in the # column of the account table
+  pick: {}, // the accounts ticked for export (account id = 1); kept until "clear" or the page is closed
   sel: [], // selected matrix cells ("row§column"); their accounts are listed under the matrix
   multiCell: false, // "select several" boxes in the matrix
   F: {},

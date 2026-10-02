@@ -4,7 +4,9 @@
   <base target="_top">
   <meta charset="utf-8">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- the font loads in the background (media="print" → "all"), so a slow or blocked internet connection
+       never holds up the page; until it arrives the text uses the normal system font -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 
   <!--
     This is the page skeleton. Every include('…') line pastes in one file of the app/ folder
@@ -21,6 +23,7 @@
   <?!= include('app/table/table-css'); ?>
   <?!= include('app/details/details-css'); ?>
   <?!= include('app/admin/admin-css'); ?>
+  <?!= include('app/touch/touch-css'); ?>
 </head>
 <body>
   <!-- Top of the page: logo, refresh info, search, service units, pipelines, tabs, filters -->
@@ -51,6 +54,7 @@
   <?!= include('app/matrix/matrix-js'); ?>
   <?!= include('app/table/table-js'); ?>
   <?!= include('app/details/details-js'); ?>
+  <?!= include('app/touch/touch-js'); ?>
   <?!= include('app/search/search-js'); ?>
   <?!= include('app/export/export-js'); ?>
   <?!= include('app/admin/admin-js'); ?>

@@ -254,13 +254,20 @@ table.grid {
   color: var(--text-soft);
   font-size: 0.8em;
 }
-/* small "Real projects only" switch above maps 01 + 02 (cleanHtml() in matrix/matrix-js) - kept quiet on purpose */
+/* small "Without P0" + "Real projects only" switches above maps 01 + 02 (cleanHtml() in matrix/matrix-js) -
+   kept quiet on purpose; stacked, P0 on top */
+.rps {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  margin-right: 14px;
+}
 .rp {
   position: relative;
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  margin-right: 14px;
   font-size: 11px;
   color: var(--text-faint);
 }
@@ -320,6 +327,18 @@ table.grid {
   padding: 2px 8px 5px;
   font-size: 10.5px;
   color: var(--text-faint);
+}
+.rp-h small {
+  font-size: 10px;
+}
+.rp-f {
+  padding: 5px 8px 2px;
+  border-top: 1px solid var(--soft);
+  margin-top: 3px;
+  text-align: right;
+}
+.rp-f .lnk {
+  font-size: 11px;
 }
 .rp-m label {
   display: flex;

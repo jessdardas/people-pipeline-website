@@ -54,6 +54,10 @@ function daysFrom(dateKey, daysKey, a) {
 }
 
 function build(d) {
+  if (!S._pxSet) {
+    S.px = defaultPx(); // standard choice of the "Real projects only" ▾ menu (once; later choices are kept)
+    S._pxSet = true;
+  }
   S.source = d.source || {};
   if (d.settings) S.settings = d.settings;
   S.checked = Date.now();
@@ -94,6 +98,12 @@ function build(d) {
       return /validat/.test(k) && /date|on$/.test(k);
     })[0] ||
     null;
+  // the city column: "city", else any account column with "city" in its name (e.g. address1_city)
+  S.cityKey = FIELD.city
+    ? 'city'
+    : Object.keys(FIELD).filter(function (k) {
+        return /city/.test(k);
+      })[0] || null;
   acc.forEach(function (a) {
     a.id = String(F(a, 'accountid') || '');
     a.name = String(F(a, 'name') == null ? '(no name)' : F(a, 'name'));
@@ -104,6 +114,7 @@ function build(d) {
     a.orig = lc(F(a, 'original_category'));
     a.industry = F(a, 'industry') == null ? '' : String(F(a, 'industry')).trim();
     a.country = lc(F(a, 'country'));
+    a.city = S.cityKey ? String(F(a, S.cityKey) == null ? '' : F(a, S.cityKey)).trim() : ''; // city column (see cityKey below)
     a.su = suKey(F(a, 'serviceunit'));
     a.owner = F(a, 'owneridname') == null ? '' : String(F(a, 'owneridname'));
     a.metIn = lc(F(a, 'met in')) === 'yes' ? 'yes' : 'no';
@@ -134,6 +145,7 @@ function build(d) {
     a.social = [];
     a.projects = [];
     a.contacts = [];
+    a.acts = []; // rows of the "activities" sheet (Touchpoints view)
     a.lists = [];
     Object.keys(a.L).forEach(function (si) {
       var s = S.sheets[si];
@@ -142,6 +154,7 @@ function build(d) {
           if (rowHasContent(s, j)) a.social.push({ s: +si, j: j });
         } else if (s.role === 'projects') a.projects.push({ s: +si, j: j });
         else if (s.role === 'contacts') a.contacts.push({ s: +si, j: j });
+        else if (s.role === 'activities') a.acts.push({ s: +si, j: j });
         else a.lists.push({ s: +si, j: j });
       });
     });
@@ -151,7 +164,11 @@ function build(d) {
         nm = String(projName(p)),
         o = { ph: PHASES.indexOf(ph) >= 0 ? ph : 'nophase', open: isOpenProject(p), date: projDate(p) };
       PROJECT_EXCLUDE.forEach(function (e) {
-        o[e.k] = e.name ? e.name.test(nm) || e.name.test(a.name) : projFlag(p, e);
+        o[e.k] = e.name
+          ? e.name.test(nm) || e.name.test(a.name)
+          : e.owner
+            ? e.owner.test(projOwner(p))
+            : projFlag(p, e);
       });
       return o;
     });
@@ -168,6 +185,13 @@ function build(d) {
         a.lpFromProj = true;
       }
     }
+    // touchpoints (app/touch/): activities with date/type/subject, site visit, publications
+    a.activities = a.acts
+      .map(actInfo)
+      .sort(function (x, y) {
+        return (y.date || 0) - (x.date || 0);
+      });
+    a.tp = touchpoints(a);
     a.projPhases = uniq(
       a.projects
         .map(function (p) {
@@ -236,6 +260,108 @@ function projFlag(p, e) {
   return !/^(|no|n|false|0|-|none)$/i.test(String(v).trim());
 }
 
+/* ---------- touchpoints (used by app/touch/touch-js and the account table) ---------- */
+
+/** The column of sheet s for one of ACT_COLS ('date' / 'type' / 'subject'), -1 when there is none. */
+function actCol(s, what) {
+  s._ac = s._ac || {};
+  if (s._ac[what] === undefined) {
+    s._ac[what] = -1;
+    var pats = ACT_COLS[what];
+    for (var r = 0; r < pats.length && s._ac[what] < 0; r++)
+      for (var i = 0; i < s.hk.length; i++)
+        if (pats[r].test(s.hk[i]) && !(what === 'type' && s.hk[i] === 'activityid')) {
+          s._ac[what] = i;
+          break;
+        }
+  }
+  return s._ac[what];
+}
+
+/** One row of the activities sheet → { date (Excel date number or null), type, subject, e (the row) }. */
+function actInfo(e) {
+  var s = S.sheets[e.s],
+    g = function (what) {
+      var c = actCol(s, what);
+      return c < 0 ? null : cv(e.s, c, e.j);
+    },
+    d = num(g('date'));
+  return {
+    date: d != null && d > NEVER ? d : null,
+    type: String(g('type') == null ? '' : g('type')).trim(),
+    subject: String(g('subject') == null ? '' : g('subject')).trim(),
+    e: e
+  };
+}
+
+/** Is a cell "filled in" as a yes (not empty, no, false, 0)? */
+function isYes(v) {
+  if (v == null || v === false || v === 0) return false;
+  return !/^(|no|n|false|0|-|none|null)$/i.test(String(v).trim());
+}
+
+/** The contact person's name column: fullname / contactname / contact / name, else any name column. */
+function contactNameCol(s) {
+  var keys = ['fullname', 'contactname', 'contact', 'name'];
+  for (var i = 0; i < keys.length; i++) if (s.hk.indexOf(keys[i]) >= 0) return s.hk.indexOf(keys[i]);
+  return nameCol(s);
+}
+
+/** The account's touchpoints: { visit: true/false, visitWhy: text, pubs: [{ who, what }] }. */
+function touchpoints(a) {
+  var t = { visit: false, visitWhy: '', pubs: [] };
+  // site visit: an account column …
+  Object.keys(FIELD).forEach(function (k) {
+    if (!t.visit && SITE_VISIT_COL.test(k) && isYes(F(a, k))) {
+      t.visit = true;
+      t.visitWhy = typeof F(a, k) === 'number' && F(a, k) > NEVER ? fmtXl(F(a, k)) : String(F(a, k));
+    }
+  });
+  // … or an activity that says "site visit"
+  if (!t.visit)
+    a.activities.some(function (x) {
+      if (SITE_VISIT_ACT.test(x.type) || SITE_VISIT_ACT.test(x.subject)) {
+        t.visit = true;
+        t.visitWhy = (x.date ? fmtXl(x.date) + ' · ' : '') + (x.subject || x.type);
+        return true;
+      }
+    });
+  // publications: pslab_publication1, 2, 3 … of the account's contact persons
+  a.contacts.forEach(function (e) {
+    var s = S.sheets[e.s],
+      nc = contactNameCol(s);
+    s.hk.forEach(function (h, c) {
+      if (!PUBLICATION_COL.test(h)) return;
+      var v = cv(e.s, c, e.j);
+      if (!isYes(v)) return;
+      t.pubs.push({
+        who: nc < 0 ? '' : String(cv(e.s, nc, e.j) || ''),
+        // a plain "yes" shows the column name ("Publication 2"); any other text is the publication itself
+        what: /^(yes|y|true|1|x)$/i.test(String(v).trim())
+          ? pretty(s.cols[c].h).replace(/(\D)(\d+)$/, '$1 $2')
+          : String(v)
+      });
+    });
+  });
+  return t;
+}
+
+/** The project's owner (OWNER_COLS in core/config-js), '' when the projects sheet has no owner column. */
+function projOwner(p) {
+  var s = S.sheets[p.s];
+  if (s._oc === undefined) {
+    s._oc = -1;
+    for (var r = 0; r < OWNER_COLS.length && s._oc < 0; r++)
+      for (var i = 0; i < s.hk.length; i++)
+        if (OWNER_COLS[r].test(s.hk[i])) {
+          s._oc = i;
+          break;
+        }
+  }
+  var v = s._oc < 0 ? null : cv(p.s, s._oc, p.j);
+  return v == null ? '' : String(v);
+}
+
 /** The project's date, as an Excel date number, or null. */
 function projDate(p) {
   var s = S.sheets[p.s];
@@ -265,14 +391,24 @@ function latestDate(list) {
   return m;
 }
 
-/** Is this project left out by the "Real projects only" switch? */
+/** Is this project left out by the "Without P0" or the "Real projects only" switch (maps 01 + 02)? */
 function leftOut(o) {
+  if (S.noP0 && o.ph === P0_PHASE) return true;
   return (
     S.clean &&
     PROJECT_EXCLUDE.some(function (e) {
       return S.px[e.k] && o[e.k];
     })
   );
+}
+
+/** The standard "left out" kinds (PROJECT_EXCLUDE off: 1). */
+function defaultPx() {
+  var px = {};
+  PROJECT_EXCLUDE.forEach(function (e) {
+    if (e.off) px[e.k] = 1;
+  });
+  return px;
 }
 
 /** Projects (all, or only the open ones) that are kept by the "Real projects only" switch. */

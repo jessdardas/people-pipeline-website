@@ -1,9 +1,11 @@
 <script>
 /* Draws the matrix for the current view */
-/** Small "Real projects only" switch above maps 01 + 02 (ON = I.N., test, intercompany, no P2 and
- *  excluded-from-pipeline projects are left out; ▾ = pick which kinds). See PROJECT_EXCLUDE in core/config-js. */
+/** Two small switches above maps 01 + 02 (kept quiet on purpose):
+ *  - "Without P0" (ON by default): P0 projects are left out (P0_PHASE in core/config-js)
+ *  - "Real projects only" (ON by default) + ▾ menu: which kinds of projects are left out (PROJECT_EXCLUDE) */
 function cleanHtml() {
   if (S.view > 2) return '';
+  // in the ▾ menu: how many accounts of this map have such projects
   var n = {};
   S.acc.forEach(function (a) {
     if (a.cls !== (S.view === 1 ? 'current pipeline' : 'past client') || !pass(a)) return;
@@ -16,6 +18,10 @@ function cleanHtml() {
     });
   });
   var h =
+    '<span class="rps">' +
+    '<span class="rp"><label class="sw" title="Leave out P0 projects"><input type="checkbox" ' +
+    (S.noP0 ? 'checked' : '') +
+    ' onchange="setNoP0(this.checked)"><i></i>Without P0</label></span>' +
     '<span class="rp"><label class="sw" title="Leave out ' +
     esc(
       PROJECT_EXCLUDE.filter(function (e) {
@@ -31,7 +37,7 @@ function cleanHtml() {
     ' onchange="setClean(this.checked)"><i></i>Real projects only</label><button class="rp-b" onclick="S.xm=!S.xm;render()" title="Choose what is left out">▾</button>';
   if (S.xm)
     h +=
-      '<div class="rp-m"><div class="rp-h">Leave out these projects</div>' +
+      '<div class="rp-m"><div class="rp-h">Leave out these projects<br><small>unticked = shown (in "other" on map 01)</small></div>' +
       PROJECT_EXCLUDE.map(function (e, i) {
         return (
           '<label><input type="checkbox" ' +
@@ -46,8 +52,13 @@ function cleanHtml() {
           '</small></label>'
         );
       }).join('') +
-      '</div>';
-  return h + '</span>';
+      '<div class="rp-f"><button class="lnk" onclick="S.px=defaultPx();changed();S.xm=true;render()">standard</button></div></div>';
+  return h + '</span></span>';
+}
+
+function setNoP0(on) {
+  S.noP0 = on;
+  changed();
 }
 
 function setClean(on) {
@@ -88,19 +99,19 @@ function scopeText() {
     );
   if (S.view === 1) parts.push(p); // pipelines only apply to map 01
   if (S.view <= 2) {
-    // "Real projects only": only mentioned when it is not the standard (everything left out)
-    var shown = PROJECT_EXCLUDE.filter(function (e) {
-      return !S.clean || !S.px[e.k];
-    });
-    if (shown.length)
+    // the two switches: only mentioned when they differ from the standard view
+    if (!S.noP0) parts.push('incl. P0');
+    var std = defaultPx(),
+      diff = PROJECT_EXCLUDE.filter(function (e) {
+        return !S.clean ? std[e.k] : !!S.px[e.k] !== !!std[e.k];
+      });
+    if (diff.length)
       parts.push(
-        'incl. ' +
-          shown
-            .map(function (e) {
-              return e.t;
-            })
-            .join(', ') +
-          ' projects'
+        diff
+          .map(function (e) {
+            return (S.clean && S.px[e.k] ? 'without ' : 'incl. ') + e.t;
+          })
+          .join(', ')
       );
   }
   return parts.filter(Boolean).join(' · ');
@@ -148,6 +159,7 @@ function heatColor(t) {
 function render() {
   var main = document.getElementById('main');
   if (!S.acc.length) return;
+  if (S.view === 5) return renderTouch(); // the Touchpoints tab is not a map (touch/touch-js)
   var def = MAPS[S.view];
   var data = S.acc.filter(function (a) {
     return def.filter(a) && pass(a);
@@ -203,6 +215,7 @@ function render() {
     return !x.opt || rowT[x.k];
   });
   var cols = def.cols.filter(function (x) {
+    if (def.hideCol && def.hideCol(x)) return false; // e.g. map 01 without the P0 column
     return !x.opt || colT[x.k];
   });
   var max = 0;

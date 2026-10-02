@@ -37,6 +37,7 @@ var DET_HIDE = {};
   'originalcategory',
   'industry',
   'country',
+  'city',
   'serviceunit',
   'owneridname',
   'metin',
@@ -252,6 +253,7 @@ function openDetail(i) {
     ['Category', cap(a.category)],
     ['Industry', cap(a.industry)],
     ['Country', cap(a.country)],
+    ['City', a.city],
     ['Service unit', unitLabel(a.su)],
     ['Owner', cap(a.owner)],
     ['Met in', cap(a.metIn)],
@@ -293,6 +295,16 @@ function openDetail(i) {
     (a.contacts.length ? groupTables(a.contacts, a) : '<p class="meta">None yet.</p>');
   h += '<h3>Projects (' + pr.length + ')</h3>' + groupTables(pr, a);
   h += '<h3>Social media (' + a.social.length + ')</h3>' + groupTables(a.social, a);
+  // touchpoints (read-only) + the account's activities (the "activities" sheet), see touch/touch-js
+  h +=
+    '<h3>Touchpoints</h3><div class="kv"><div>Site visit</div><div>' +
+    tpBox(a.tp.visit) +
+    (a.tp.visitWhy ? ' ' + esc(a.tp.visitWhy) : '') +
+    '</div><div>Publication</div><div>' +
+    tpBox(a.tp.pubs.length > 0) +
+    (a.tp.pubs.length ? ' ' + esc(tpPubText(a)) : '') +
+    '</div></div>';
+  if (a.acts.length) h += '<h3>Activities (' + a.acts.length + ')</h3>' + groupTables(a.acts, a);
   if (a.lists.length) h += '<h3>Other linked rows (' + a.lists.length + ')</h3>' + groupTables(a.lists, a);
   // any other column in the file (new query columns show up here automatically)
   var more = [];
@@ -300,7 +312,7 @@ function openDetail(i) {
     if (s.role !== 'accounts' && s.role !== 'merge') return;
     var j = s.role === 'accounts' ? a.i : a.mr[s.si];
     s.cols.forEach(function (c, ci) {
-      if (DET_HIDE[s.hk[ci]] || /id$/.test(s.hk[ci]) || /validat/.test(s.hk[ci])) return;
+      if (DET_HIDE[s.hk[ci]] || s.hk[ci] === S.cityKey || /id$/.test(s.hk[ci]) || /validat/.test(s.hk[ci])) return;
       more.push(
         '<div>' +
           esc(pretty(c.h)) +

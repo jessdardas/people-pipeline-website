@@ -41,6 +41,23 @@
   color: var(--text-soft);
   font-weight: 600;
 }
+/* ↻ refresh button (the only way the data is read again) */
+.rf button {
+  margin-left: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: var(--text-soft);
+  font-size: 13px;
+  transition:
+    background 0.15s,
+    transform 0.3s;
+}
+.rf button:hover {
+  background: var(--soft);
+  color: var(--accent);
+  transform: rotate(90deg);
+}
 /* ---------- row 2: service units (left) + pipelines (right) ---------- */
 .bar {
   display: flex;
