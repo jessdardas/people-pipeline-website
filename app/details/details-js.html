@@ -362,10 +362,11 @@ function addCollapse(root) {
     if (!th || th.querySelector('.clp')) return;
     th.insertAdjacentHTML('afterbegin', '<button class="clp" onclick="toggleTbl(this,event)" title="Hide / show the rows">▾</button>');
   });
-  // the label / value blocks (Overview, Touchpoints, More details): the arrow sits in their title
-  root.querySelectorAll('h3 + .kv').forEach(function (kv) {
-    var h3 = kv.previousElementSibling;
-    if (h3.querySelector('.clp')) return;
+  // every other section (Overview, contact persons, touchpoints, More details …): the arrow sits in its title and
+  // hides what follows the title (sections with a table use the arrow in the table header instead)
+  root.querySelectorAll('h3').forEach(function (h3) {
+    var next = h3.nextElementSibling;
+    if (h3.querySelector('.clp') || !next || next.querySelector('table.tb') || next.id === 'actBox') return;
     h3.insertAdjacentHTML('afterbegin', '<button class="clp" onclick="this.closest(\'h3\').classList.toggle(\'collapsed\')" title="Hide / show">▾</button>');
   });
 }
@@ -446,15 +447,6 @@ function openDetail(i) {
       })
       .join('') +
     '</div>';
-  // projects
-  // "Real projects only": left-out projects (I.N., intercompany, …) are not shown (realProject in touch/touchpoints-js)
-  var pr = a.projects.filter(function (p) {
-    var o = a.pj[a.projects.indexOf(p)];
-    return !o || realProject(o);
-  });
-  pr = pr.sort(function (x, y) {
-    return String(cellBy(y.s, y.j, 'Phase_Group')).localeCompare(String(cellBy(x.s, x.j, 'Phase_Group')));
-  });
   // contact persons (Query 5 in the Excel file): only their names - only shown here, not in the big table
   var names = contactNames(a);
   h +=
@@ -470,9 +462,9 @@ function openDetail(i) {
           .join('') +
         '</ul>'
       : '<p class="meta">None yet.</p>');
-  h += '<h3>Projects (' + pr.length + ')</h3>' + groupTables(pr, a);
-  // Account → Projects → Phase → Touchpoints (the same touchpoints as the Touchpoints view, touch/touchpoints-js)
-  h += '<h3>Project touchpoints</h3>' + tpAccountHtml(a);
+  // the account's real projects: the same table as the Touchpoints view (# | Project | Phase | Accounts); click a project
+  // to tick its touchpoints per account (touch/touchpoints-js)
+  h += '<h3>Projects (' + accProjects(a).length + ')</h3>' + tpAccountHtml(a);
   h += '<h3>Social media (' + a.social.length + ')</h3>' + groupTables(a.social, a);
   // touchpoints (read-only: last site visit, Pub 1, Pub 2 …) + the account's activities (no tasks), see touch/touch-js
   h +=

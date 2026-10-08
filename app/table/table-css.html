@@ -364,4 +364,48 @@ table.tb {
 .dtools .seg.lv button {
   font-size: 12px;
 }
+/* "Sort by" (shared by every view) */
+.sortby {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+.sortby select {
+  font: inherit;
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+}
+.sortd {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 12px;
+}
+/* the legend on the right of the tools row (Stay in touch, Touchpoints): same place in every view */
+#dtLeg .actleg,
+#dtLeg .tpleg {
+  margin: 0;
+  justify-content: flex-end;
+  max-width: 640px;
+}
+.dt-r {
+  min-height: 32px;
+}
+/* the tools row has the same height in every view (a legend may take 2 lines), so the table never jumps */
+.dtools {
+  min-height: 62px;
+  align-items: flex-start;
+}
+#dtLeg .tpleg,
+#dtLeg .actleg {
+  gap: 4px 10px;
+  font-size: 11px;
+}
 </style>

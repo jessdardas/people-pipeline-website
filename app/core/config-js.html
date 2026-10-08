@@ -231,6 +231,7 @@ var S = {
   px: {}, // which PROJECT_EXCLUDE kinds that switch leaves out (filled from their "off" setting in build())
   noP0: true, // "Without P0" switch (maps 01 + 02)
   xm: false, // its small menu is open
+  nbCats: [], // No business: the categories picked with the cards (empty = all categories)
   dbFrom: '', // New DB: a date picked for this view only (not saved); '' = the admin date
   view: 1,
   db: 'pipeline', // 'pipeline' = everything, 'newdb' = only accounts validated on or after settings.newDbFrom
@@ -244,7 +245,6 @@ var S = {
   tpTemp: {}, // touchpoints ticked on screen ("projectKey|accountId|touchpointKey" = 1) - temporary, never saved
   tpOpenP: {}, // Touchpoints view: the projects opened (their accounts × touchpoints table shown under them)
   tpPh: {}, // Touchpoints view: the phase shown in an opened project's table (standard: its current phase)
-  staySort: 'name', // Stay in touch policy: sort - 'name' (default), 'recent', 'most', 'unit'
   pickMode: false, // "check to export" is ticked: tick boxes in the # column of the account table
   pick: {}, // the accounts ticked for export (account id = 1); kept until "clear" or the page is closed
   sel: [], // selected matrix cells ("row§column"); their accounts are listed under the matrix
@@ -257,7 +257,8 @@ var S = {
   listMeta: '',
   detail: null,
   hl: null,
-  g: { sort: { k: 'lm', d: 1 }, cf: {}, q: '', limit: 100 },
+  sortPref: { k: 'name', d: 1 }, // the sort of every list (all views, all maps): standard Account name A→Z
+  g: { sort: { k: 'name', d: 1 }, cf: {}, q: '', limit: 100 },
   multiUnit: false,
   pm: false,
   pop: null,

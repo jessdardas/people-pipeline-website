@@ -356,111 +356,74 @@
   padding-bottom: 10px;
   border-bottom: none;
 }
-/* 1. the BUSINESS | NO BUSINESS switch: what is not selected is faded, so the selected view stands out */
+/* 1. BUSINESS | NO BUSINESS and 2. the map cards: the same look as the matrix boxes (matrix/matrix-css):
+   the selected one filled in the matrix blue, the others like an empty box (dashed, faded) */
 .biz {
   display: flex;
-  align-self: center;
-  border: 1.5px solid var(--text);
-  border-radius: 10px;
-  overflow: hidden;
+  gap: 6px;
   flex: none;
 }
-.biz button {
-  padding: 0 16px;
-  min-height: 36px;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text);
-  background: var(--surface);
-  opacity: 0.38;
+.biz button,
+.mcard {
+  border-radius: var(--cell-radius);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--heat-text);
+  background: transparent;
+  border: 1.5px dashed var(--line);
+  opacity: 0.55;
   transition:
-    background 0.15s,
-    color 0.15s,
-    opacity 0.15s;
+    transform 0.12s,
+    box-shadow 0.12s,
+    opacity 0.12s;
 }
-.biz button + button {
-  border-left: 1.5px solid var(--text);
+.biz button:hover,
+.mcard:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
 }
-.biz button:hover {
-  opacity: 0.75;
-}
-.biz button.on {
-  background: var(--text);
-  color: #fff;
+.biz button.on,
+.mcard.on {
   opacity: 1;
+  border: 1.5px solid transparent;
+  background: var(--heat-high);
+  box-shadow: inset 0 0 0 3px var(--heat-selected);
 }
-/* 2. the maps of that choice, as cards: the selected one strong, the others faded */
+/* BUSINESS | NO BUSINESS: a tiny bit bigger than a box */
+.biz button {
+  min-height: 62px;
+  min-width: 128px;
+  padding: 0 16px;
+  font-size: 16px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+/* the map cards: the size of a matrix box */
 .maps {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
   flex-wrap: wrap;
 }
 .mcard {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  gap: 0;
-  min-width: 150px;
-  padding: 6px 14px;
-  border: 1.5px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  text-align: left;
-  opacity: 0.45;
-  transition:
-    border-color 0.15s,
-    box-shadow 0.15s,
-    opacity 0.15s;
-}
-.mcard:hover {
-  opacity: 0.8;
-  border-color: var(--text-faint);
-}
-.mcard .mno {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text-faint);
+  min-height: 56px;
+  min-width: 128px;
+  padding: 4px 12px;
+  text-align: center;
 }
 .mcard .mt {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.15;
 }
 .mcard .mn {
   font-size: 11px;
-  color: var(--text-soft);
-}
-.mcard.on {
-  opacity: 1;
-  border: 2px solid var(--accent);
-  background: #f2f6fd;
-  box-shadow: 0 3px 10px rgba(31, 79, 154, 0.12);
-}
-.mcard.on .mno {
-  color: var(--accent);
-}
-.mall {
-  align-self: center;
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  color: var(--text-soft);
-  border: 1.5px dashed var(--line);
-  opacity: 0.6;
-}
-.mall:hover {
-  opacity: 1;
-}
-.mall.on {
-  opacity: 1;
-  border-style: solid;
-  border-color: var(--accent);
-  color: var(--text);
   font-weight: 600;
+  opacity: 0.7;
 }
 .navr {
   margin-left: auto;
@@ -508,5 +471,59 @@
   .navr {
     margin-left: 0;
   }
+}
+/* levels 3 + 4: the users look exactly like the service units (no border), and both rows start at the same place
+   (the same label width), so the units and the users sit right below each other */
+.bar.lvl3 .lvlb,
+.owners.lvl4 .olbl {
+  width: 110px;
+  flex: none;
+  margin-right: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.bar.lvl3 {
+  gap: 10px 0;
+  align-items: flex-end;
+}
+.bar.lvl3 .lvlb {
+  padding-bottom: 6px;
+}
+.owners.lvl4 {
+  gap: 4px;
+  padding-left: 32px;
+  padding-right: 32px;
+}
+.owners.lvl4 button {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-soft);
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.owners.lvl4 button:hover {
+  background: var(--soft);
+  color: var(--text);
+}
+.owners.lvl4 button.on {
+  background: var(--accent);
+  color: #fff;
+}
+@media (max-width: 760px) {
+  .owners.lvl4 {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+.owners.lvl4 .olbl {
+  margin-right: -4px; /* cancels the row gap, so the first user lines up with the first service unit */
 }
 </style>

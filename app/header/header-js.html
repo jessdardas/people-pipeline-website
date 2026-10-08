@@ -183,10 +183,12 @@ function renderUnits() {
   renderNav();
 }
 
-/* ---------- levels 1 + 2: BUSINESS | NO BUSINESS, then the maps of that choice ---------- */
-// which maps belong to each choice (MAPS in matrix/maps-js); "All accounts" (4) is a small link next to the maps
+/* ---------- levels 1 + 2: BUSINESS | NO BUSINESS, then the maps of that choice ----------
+   BUSINESS    → map cards 01 Current pipeline, 02 Past pipeline, 05 Past clients (one at a time)
+   NO BUSINESS → map 03, with a card per account category: click to pick one or several (S.nbCats; none = all),
+                 the map then shows only those categories - all of them at once when all are picked */
 var BIZ = [
-  { k: 'business', t: 'Business', views: [1, 2] },
+  { k: 'business', t: 'Business', views: [1, 2, 5] },
   { k: 'nobusiness', t: 'No business', views: [3] }
 ];
 
@@ -197,55 +199,83 @@ function bizOf(view) {
 }
 
 /** Accounts of map v for the current selection (the number on its card). */
-function mapCount(v) {
+function mapCount(v, extra) {
   var keep = S.view;
   S.view = v; // pass() depends on the map (pipelines only count on map 01)
   var n = S.acc.filter(function (a) {
-    return MAPS[v].filter(a) && pass(a);
+    return MAPS[v].filter(a) && pass(a) && (!extra || extra(a));
   }).length;
   S.view = keep;
   return n;
 }
 
+/** A card in the look of a matrix box: the name, and the number of accounts below it. */
+function navCard(on, onclick, name, n, title) {
+  return (
+    '<button class="mcard' +
+    (on ? ' on' : '') +
+    '" onclick="' +
+    onclick +
+    '"' +
+    (title ? ' title="' + esc(title) + '"' : '') +
+    '><span class="mt">' +
+    esc(name) +
+    '</span><span class="mn">' +
+    n.toLocaleString('en-GB') +
+    ' accounts</span></button>'
+  );
+}
+
 function renderNav() {
-  var cur = bizOf(S.view);
+  var cur = bizOf(S.view) || BIZ[0];
   document.getElementById('biz').innerHTML = BIZ.map(function (b) {
-    return (
-      '<button class="' + (cur === b ? 'on' : '') + '" onclick="setBiz(\'' + b.k + '\')">' + esc(b.t) + '</button>'
-    );
+    return '<button class="' + (cur === b ? 'on' : '') + '" onclick="setBiz(\'' + b.k + '\')">' + esc(b.t) + '</button>';
   }).join('');
-  var views = (cur || BIZ[0]).views;
-  document.getElementById('tabs').innerHTML =
-    views
+  var h = '';
+  if (cur.k === 'business')
+    h = cur.views
       .map(function (i) {
-        var n = S.acc.length ? mapCount(i) : 0;
-        return (
-          '<button class="mcard ' +
-          (S.view === i ? 'on' : '') +
-          '" onclick="setView(' +
-          i +
-          ')"><span class="mno">0' +
-          i +
-          '</span><span class="mt">' +
-          esc(MAPS[i].title) +
-          '</span><span class="mn">' +
-          n.toLocaleString('en-GB') +
-          ' accounts</span></button>'
-        );
+        return navCard(S.view === i, 'setView(' + i + ')', MAPS[i].title, S.acc.length ? mapCount(i) : 0);
       })
-      .join('') +
-    '<button class="mall ' +
-    (S.view === 4 ? 'on' : '') +
-    '" onclick="setView(4)">All accounts</button>';
+      .join('');
+  else {
+    // No business: one card per category (with all categories counted, whatever is picked)
+    var keep = S.nbCats;
+    S.nbCats = [];
+    h = CATEGORY_ROWS.map(function (r) {
+      var n = S.acc.length
+        ? mapCount(3, function (a) {
+            return catKey(a.category) === r.k;
+          })
+        : 0;
+      return navCard(!keep.length || keep.indexOf(r.k) >= 0, 'setNbCat(\'' + r.k + '\')', r.t, n, 'Click to show only / add / remove this category');
+    }).join('');
+    S.nbCats = keep;
+  }
+  document.getElementById('tabs').innerHTML = h;
   renderSwitches();
 }
 
-/** BUSINESS → map 01 (or stays on 02); NO BUSINESS → map 03. */
+/** BUSINESS → map 01 (or stays on 02 / 05); NO BUSINESS → map 03. */
 function setBiz(k) {
   var b = BIZ.filter(function (x) {
     return x.k === k;
   })[0];
   if (b.views.indexOf(S.view) < 0) setView(b.views[0]);
+}
+
+/** No business: all categories shown (S.nbCats empty) → a click shows only that one; then a click adds / removes a
+ *  category. Removing the last one, or picking all of them, shows all categories again. */
+function setNbCat(k) {
+  if (!S.nbCats.length) S.nbCats = [k];
+  else {
+    var i = S.nbCats.indexOf(k);
+    if (i >= 0) S.nbCats.splice(i, 1);
+    else S.nbCats.push(k);
+  }
+  if (S.nbCats.length === CATEGORY_ROWS.length) S.nbCats = [];
+  if (S.view !== 3) S.view = 3;
+  changed();
 }
 
 function setUnit(u) {

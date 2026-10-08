@@ -33,6 +33,24 @@ var CATEGORY_ROWS = [
   { k: 'other', t: 'Other', s: 'incl. lighting designer / dealer' }
 ];
 
+// last meeting rows (maps 02 Past pipeline and 05 Past clients)
+var MEETING_ROWS = [
+  { k: 0, t: '0–3 months' },
+  { k: 1, t: '3–6 months' },
+  { k: 2, t: '6–9 months' },
+  { k: 3, t: '9–12 months' },
+  { k: 4, t: '12–15 months' },
+  { k: 5, t: '15–18 months' },
+  { k: 6, t: '18+ months' },
+  { k: 'n', t: 'No meeting', s: 'never met', opt: 1 }
+];
+
+/** The last-project column of a past client: 0 = 0–6, 1 = 6–12, 2 = 12–18, 3 = 18+ months, 'n' = no project.
+ *  The file's project bucket (classification2 = 1…4) wins when it is filled in. */
+function pastCol(a) {
+  return /^[1-4]$/.test(a.pb) ? +a.pb - 1 : band(mo(lastProjectDays(a)), [6, 12, 18], 'n');
+}
+
 var MAPS = {
   1: {
     title: 'Current pipeline',
@@ -74,10 +92,11 @@ var MAPS = {
     }
   },
   2: {
-    title: 'Past pipeline', // past clients
-    // an account whose projects are ALL left out ("Without P0" / "Real projects only") leaves the map
+    title: 'Past pipeline',
+    // past clients whose last project is less than 18 months ago (18+ months → map 05 Past clients);
+    // an account whose projects are ALL left out by "Real projects only" leaves the map
     filter: function (a) {
-      return a.cls === 'past client' && (!a.pj.length || keptProjects(a, false).length > 0);
+      return a.cls === 'past client' && pastCol(a) !== 3 && (!a.pj.length || keptProjects(a, false).length > 0);
     },
     x: 'Last project',
     y: 'Last meeting',
@@ -85,30 +104,46 @@ var MAPS = {
       { k: 0, t: '0–6 months' },
       { k: 1, t: '6–12 months' },
       { k: 2, t: '12–18 months' },
-      { k: 3, t: '18+ months' },
       { k: 'n', t: 'problematic', opt: 1 }
     ],
-    rows: [
-      { k: 0, t: '0–3 months' },
-      { k: 1, t: '3–6 months' },
-      { k: 2, t: '6–9 months' },
-      { k: 3, t: '9–12 months' },
-      { k: 4, t: '12–15 months' },
-      { k: 5, t: '15–18 months' },
-      { k: 6, t: '18+ months' },
-      { k: 'n', t: 'No meeting', s: 'never met', opt: 1 }
-    ],
+    rows: MEETING_ROWS,
     place: function (a) {
+      return [band(mo(a.lastMeeting), [3, 6, 9, 12, 15, 18], 'n'), pastCol(a)];
+    }
+  },
+  5: {
+    title: 'Past clients',
+    // past clients whose last project is 18+ months ago, by year: "2 years" = in the 2nd year (18–24 months),
+    // "3 years" = 24–36 months, "4 years" = 36–48 months, "5+ years" = 48 months or more
+    filter: function (a) {
+      return a.cls === 'past client' && pastCol(a) === 3 && (!a.pj.length || keptProjects(a, false).length > 0);
+    },
+    x: 'Last project',
+    y: 'Last meeting',
+    cols: [
+      { k: 'y2', t: '2 years', s: '18–24 months' },
+      { k: 'y3', t: '3 years', s: '2–3 years' },
+      { k: 'y4', t: '4 years', s: '3–4 years' },
+      { k: 'y5', t: '5+ years', s: '4 years or more' },
+      { k: 'yn', t: '18+ months, no date', opt: 1 }
+    ],
+    rows: MEETING_ROWS,
+    place: function (a) {
+      var m = mo(lastProjectDays(a));
       return [
         band(mo(a.lastMeeting), [3, 6, 9, 12, 15, 18], 'n'),
-        /^[1-4]$/.test(a.pb) ? +a.pb - 1 : band(mo(lastProjectDays(a)), [6, 12, 18], 'n')
+        m == null || m < 18 ? 'yn' : m < 24 ? 'y2' : m < 36 ? 'y3' : m < 48 ? 'y4' : 'y5'
       ];
     }
   },
   3: {
     title: 'No business',
+    // the category cards above (S.nbCats, empty = all categories) pick which categories (rows) are shown
     filter: function (a) {
-      return NB.indexOf(a.cls) >= 0;
+      return NB.indexOf(a.cls) >= 0 && (!S.nbCats.length || S.nbCats.indexOf(catKey(a.category)) >= 0);
+    },
+    rowPick: function (r) {
+      return !S.nbCats.length || S.nbCats.indexOf(r.k) >= 0;
     },
     x: 'Classification',
     y: 'Account category',
@@ -144,8 +179,10 @@ function placesOf(def, a) {
   return def.places ? def.places(a) : [def.place(a)];
 }
 
+/** The map an account is on: 01, 02, 05 (Business) or 03 (No business); 4 = on none of them. */
 function viewOf(a) {
-  for (var v = 1; v <= 3; v++) if (MAPS[v].filter(a)) return v;
+  var order = [1, 2, 5, 3];
+  for (var i = 0; i < order.length; i++) if (MAPS[order[i]].filter(a)) return order[i];
   return 4;
 }
 </script>

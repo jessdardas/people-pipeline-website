@@ -1,7 +1,7 @@
 <style>
 /* Touchpoints (touch/touchpoints-js.html) - soft group shades (--gc = shade, --gl = light tint), kept calm */
 
-/* a tick box: round = Added value, square = Deliverable; ticked = filled with the group shade + ✓ */
+/* a tick box: always round (the type is not shown); ticked = filled with the group shade + ✓ */
 .tpk {
   width: 15px;
   height: 15px;
@@ -16,18 +16,13 @@
   font-weight: 800;
   line-height: 1;
   padding: 0;
+  border-radius: 50%;
   cursor: pointer;
   vertical-align: middle;
   transition: background 0.12s;
 }
 span.tpk {
   cursor: default;
-}
-.tpk.av {
-  border-radius: 50%;
-}
-.tpk.del {
-  border-radius: 3px;
 }
 .tpk.on {
   background: var(--gc, #8c9399);
@@ -198,7 +193,6 @@ table.tpm td {
 table.tpm th.ma,
 table.tpm td.ma {
   text-align: left;
-  min-width: 180px;
   position: sticky;
   left: 0;
   background: #fff;
@@ -220,22 +214,33 @@ table.tpm th.mg {
   font-weight: 700;
   text-align: center;
 }
+/* every touchpoint column has the same width and its name starts at the top, so switching phases keeps the
+   spacing identical */
+table.tpm {
+  table-layout: fixed;
+}
+table.tpm th.ma,
+table.tpm td.ma {
+  width: 190px;
+}
+table.tpm th.mt,
+table.tpm td.mc {
+  width: 92px;
+  min-width: 92px;
+  max-width: 92px;
+}
 table.tpm th.mt {
   background: var(--gl);
   font-size: 10.5px;
   font-weight: 600;
   color: var(--text-soft);
   text-align: center;
-  min-width: 74px;
-  max-width: 110px;
   white-space: normal;
-  vertical-align: bottom;
+  overflow-wrap: anywhere;
+  vertical-align: top;
 }
-table.tpm th.mt .tpk {
-  display: flex;
-  margin: 0 auto 3px;
-  width: 11px;
-  height: 11px;
+table.tpm th.ma {
+  vertical-align: top;
 }
 table.tpm td.mc {
   text-align: center;

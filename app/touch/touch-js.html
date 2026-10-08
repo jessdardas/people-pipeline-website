@@ -133,40 +133,6 @@ function clearWeek() {
   renderList();
 }
 
-/** The sort of the Stay in touch policy list (S.staySort): name (default), recent, most, unit. */
-var STAY_SORTS = [
-  { k: 'name', t: 'Account name' },
-  { k: 'recent', t: 'Most recent activity' },
-  { k: 'most', t: 'Most activities in these weeks' },
-  { k: 'unit', t: 'Service unit' }
-];
-
-function staySorted(list, first, end) {
-  var inWin = function (a) {
-    return acts(a).filter(function (x) {
-      return x.date != null && x.date >= first && x.date < end;
-    }).length;
-  };
-  var latest = function (a) {
-    return acts(a).length && acts(a)[0].date ? acts(a)[0].date : 0; // activities are newest first
-  };
-  var by = {
-    name: function (x, y) {
-      return x.name.localeCompare(y.name);
-    },
-    recent: function (x, y) {
-      return latest(y) - latest(x) || x.name.localeCompare(y.name);
-    },
-    most: function (x, y) {
-      return inWin(y) - inWin(x) || x.name.localeCompare(y.name);
-    },
-    unit: function (x, y) {
-      return unitLabel(x.su).localeCompare(unitLabel(y.su)) || x.name.localeCompare(y.name);
-    }
-  };
-  return list.slice().sort(by[S.staySort] || by.name);
-}
-
 /** The week menu (activity types of that week, for the accounts of the list). */
 function weekMenuHtml(m, list) {
   var cnt = {};
@@ -225,18 +191,11 @@ function renderStay(box, all) {
       return s.role === 'activities';
     });
   if (S.wf && (S.wf.start < first || S.wf.start >= end)) S.wf = null; // the week is no longer shown
-  var list = staySorted(all.filter(passWeek), first, end);
-  var h =
-    '<div class="stay-top"><div class="stay-info">' +
-    (hasActs
-      ? 'Past weeks: the subject of each activity, coloured by type (no tasks) · click a week to filter by activity type · next weeks: to-dos (coming later)'
-      : 'No "activities" sheet in the Excel file yet: the weeks stay empty.') +
-    '</div><label class="stay-sort">Sort by <select onchange="S.staySort=this.value;renderList()">' +
-    STAY_SORTS.map(function (o) {
-      return '<option value="' + o.k + '"' + (S.staySort === o.k ? ' selected' : '') + '>' + esc(o.t) + '</option>';
-    }).join('') +
-    '</select></label></div>' +
-    actLegend(all);
+  var list = all.filter(passWeek); // same order as the listing (the shared "Sort by")
+  // the colour legend goes on the right of the tools row (the same place in every view), no text above the table
+  var leg = document.getElementById('dtLeg');
+  if (leg) leg.innerHTML = actLegend(all);
+  var h = hasActs ? '' : '<p class="meta">No "activities" sheet in the Excel file yet: the weeks stay empty.</p>';
   if (S.wf)
     h +=
       '<div class="wfbar">Week ' +

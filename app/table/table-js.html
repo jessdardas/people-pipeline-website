@@ -208,6 +208,16 @@ function openCell(rk, ck) {
 }
 
 /** Click on a row title (kind 'r') or column title (kind 'c'): selects every box of that row / column. */
+/** The big total of the matrix: list the accounts of every box. Click again to close. */
+function selectAllCells() {
+  var keys = Object.keys(S._cells || {});
+  if (!keys.length) return;
+  S.sel = S.sel.length === keys.length ? [] : keys;
+  S.g = newGrid();
+  render();
+  scrollToList();
+}
+
 function selectLine(kind, k) {
   var keys = Object.keys(S._cells || {}).filter(function (key) {
     var p = key.split('§');
@@ -239,8 +249,30 @@ function scrollToList() {
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+/** A fresh list state. The sort is shared by every view and map and kept when the list changes (S.sortPref). */
 function newGrid() {
-  return { sort: { k: 'lm', d: 1 }, cf: {}, q: '', limit: 100 };
+  return { sort: { k: S.sortPref.k, d: S.sortPref.d }, cf: {}, q: '', limit: 100 };
+}
+
+/** "Sort by" (the same in Account listing, Stay in touch policy and Touchpoints): column + direction. */
+function setSort(k, d) {
+  S.sortPref = { k: k, d: d || S.sortPref.d };
+  S.g.sort = { k: S.sortPref.k, d: S.sortPref.d };
+  renderList();
+  var sel = document.getElementById('sortSel');
+  if (sel) sel.value = S.sortPref.k;
+}
+
+function sortHtml() {
+  return (
+    '<label class="sortby">Sort by <select id="sortSel" onchange="setSort(this.value)">' +
+    TCOLS.map(function (c) {
+      return '<option value="' + c.k + '"' + (S.g.sort.k === c.k ? ' selected' : '') + '>' + esc(c.t) + '</option>';
+    }).join('') +
+    '</select><button class="sortd" onclick="setSort(S.g.sort.k, -S.g.sort.d)" title="Reverse">' +
+    (S.g.sort.d > 0 ? '↑' : '↓') +
+    '</button></label>'
+  );
 }
 
 function closeCell() {
@@ -274,16 +306,17 @@ function listBlock(meta, closable) {
     '<input id="dSearch" placeholder="Search in this list…" value="' +
     esc(S.g.q) +
     '" oninput="S.g.q=this.value;S.g.limit=100;renderList()">' +
+    sortHtml() +
     (S.listView === 'list'
       ? '<button class="btn ghost" onclick="toggleColPanel()" title="Show, hide, order and rename the columns">Columns</button>'
       : '') +
     '</div><div class="dt-r">' +
-    // export tools: Account listing only (Stay in touch policy has no export)
+    // right side - always the same place: export tools (Account listing) or the colour legend (the other views)
     (S.listView === 'list'
       ? chip('check to export', S.pickMode, 'setPickMode', 'Tick accounts in the # column; Excel / PDF then export only those') +
         '<span class="pickn" id="pickN"></span>' +
         '<button class="btn" onclick="exportList(\'xlsx\')">Excel</button><button class="btn" onclick="exportList(\'pdf\')">PDF</button>'
-      : '') +
+      : '<span id="dtLeg"></span>') +
     '</div></div><div class="tw" id="tw"></div><div class="hpop" id="hpop"></div><div class="hpop cpop" id="cpop"></div></div>'
   );
 }
@@ -354,6 +387,14 @@ function renderList() {
   var list = shownList(),
     cols = visibleCols();
   S._shown = list;
+  // keep the "Sort by" box in step (a click on a column title also changes the sort)
+  var ss = document.getElementById('sortSel');
+  if (ss) {
+    ss.value = S.g.sort.k;
+    ss.nextSibling.textContent = S.g.sort.d > 0 ? '↑' : '↓';
+  }
+  var leg = document.getElementById('dtLeg');
+  if (leg) leg.innerHTML = '';
   var c = document.getElementById('gCount');
   if (c) c.textContent = list.length.toLocaleString('en-GB') + ' account' + (list.length === 1 ? '' : 's');
   if (S.listView === 'tp' && S.view !== 1) S.listView = 'list'; // Touchpoints only exists on Current pipeline
@@ -580,6 +621,7 @@ function headAll(on) {
 
 function headSort(d) {
   S.g.sort = { k: S.hk, d: d };
+  S.sortPref = { k: S.hk, d: d }; // the same sort in every view
   closeHead();
   renderList();
 }

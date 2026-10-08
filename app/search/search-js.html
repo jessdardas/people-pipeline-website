@@ -64,6 +64,7 @@ function goTo(i) {
   var a = S.acc[i];
   if (!a) return;
   document.getElementById('gres').classList.remove('open');
+  if (viewOf(a) === 4) return toast(a.name + ' is not on any map (its classification is not on the maps)');
   var loc = locate(a),
     adj = [];
   // only loosen what would hide this account – the numbers stay as they are otherwise
@@ -79,6 +80,10 @@ function goTo(i) {
   if (!inDb(a)) {
     S.db = 'pipeline';
     adj.push('New DB → People pipeline');
+  }
+  if (loc.v === 3 && S.nbCats.length && S.nbCats.indexOf(catKey(a.category)) < 0) {
+    S.nbCats = [];
+    adj.push('category');
   }
   if (loc.v === 1 && S.pipes.length && S.pipes.indexOf(a.pipe) < 0) {
     if (a.pipe) S.pipes.push(a.pipe);

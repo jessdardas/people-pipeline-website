@@ -1,7 +1,7 @@
 <script>
 /* Draws the matrix for the current view */
 /** The two small switches in the navigation row (#sws), kept quiet on purpose:
- *  - "Without P0" (ON by default, maps 01 + 02 only): P0 projects are left out (P0_PHASE in core/config-js)
+ *  - "Without P0" (ON by default, map 01 Current pipeline only): P0 projects are left out (P0_PHASE in core/config-js)
  *  - "Real projects only" (ON by default, the whole dashboard) + ▾ menu: which kinds of projects are left out
  *    (PROJECT_EXCLUDE); accounts linked to internal users are removed everywhere (see hiddenAcc() in core/data-js) */
 function renderSwitches() {
@@ -10,22 +10,30 @@ function renderSwitches() {
 }
 
 function cleanHtml() {
-  // in the ▾ menu: how many accounts of this map have such projects
-  var n = {};
+  // in the ▾ menu, next to each kind: how many ACCOUNTS it concerns - always the same, ticked or not
+  // (counted with "Real projects only" off, in the current service unit / user / New DB / Filters selection):
+  //   Internal owner = the accounts that are removed completely (an internal-owner project, or an internal owner)
+  //   the other kinds = the accounts that have at least one such project (those projects are taken out)
+  var n = {},
+    keep = S.clean;
+  S.clean = false;
   S.acc.forEach(function (a) {
-    if (!MAPS[S.view].filter(a) || !pass(a)) return;
-    var list = S.view === 1 ? a.open : a.pj;
+    if (!pass(a)) return;
     PROJECT_EXCLUDE.forEach(function (e) {
-      if (list.some(function (o) {
-        return o[e.k];
-      }))
-        n[e.k] = (n[e.k] || 0) + 1;
+      var hit =
+        e.k === 'own'
+          ? a.intOwner || a.intKinds.own
+          : a.pj.some(function (o) {
+              return o[e.k];
+            });
+      if (hit) n[e.k] = (n[e.k] || 0) + 1;
     });
   });
+  S.clean = keep;
   var h =
     '<span class="rps">' +
-    (S.view <= 2
-      ? '<span class="rp"><label class="sw" title="Leave out P0 projects (maps 01 and 02)"><input type="checkbox" ' +
+    (S.view === 1
+      ? '<span class="rp"><label class="sw" title="Leave out P0 projects (Current pipeline)"><input type="checkbox" ' +
         (S.noP0 ? 'checked' : '') +
         ' onchange="setNoP0(this.checked)"><i></i>Without P0</label></span>'
       : '') +
@@ -44,7 +52,7 @@ function cleanHtml() {
     ' onchange="setClean(this.checked)"><i></i>Real projects only</label><button class="rp-b" onclick="S.xm=!S.xm;renderSwitches()" title="Choose what is left out">▾</button>';
   if (S.xm)
     h +=
-      '<div class="rp-m"><div class="rp-h">Leave out these projects<br><small>unticked = shown (in "other" on map 01)</small></div>' +
+      '<div class="rp-m"><div class="rp-h">Leave out these projects<br><small>number = accounts concerned (whole accounts removed for Internal owner) · unticked = shown, in "other" on map 01</small></div>' +
       PROJECT_EXCLUDE.map(function (e, i) {
         return (
           '<label><input type="checkbox" ' +
@@ -54,9 +62,11 @@ function cleanHtml() {
           i +
           ')">' +
           esc(e.t) +
-          '<small>' +
-          (n[e.k] || 0) +
-          '</small></label>'
+          '<small title="' +
+          (e.k === 'own' ? 'accounts removed completely' : 'accounts with such projects') +
+          '">' +
+          (n[e.k] || 0).toLocaleString('en-GB') +
+          ' acc.</small></label>'
         );
       }).join('') +
       '<div class="rp-f"><button class="lnk" onclick="S.px=defaultPx();changed();S.xm=true;renderSwitches()">standard</button></div></div>';
@@ -105,9 +115,9 @@ function scopeText() {
           .join(', ')
     );
   if (S.view === 1) parts.push(p); // pipelines only apply to map 01
-  if (S.view <= 2) {
+  if (S.view === 1 || S.view === 2 || S.view === 5) {
     // the two switches: only mentioned when they differ from the standard view
-    if (!S.noP0) parts.push('incl. P0');
+    if (!S.noP0 && S.view === 1) parts.push('incl. P0');
     var std = defaultPx(),
       diff = PROJECT_EXCLUDE.filter(function (e) {
         return !S.clean ? std[e.k] : !!S.px[e.k] !== !!std[e.k];
@@ -217,6 +227,7 @@ function render() {
   });
   var total = data.length;
   var rows = def.rows.filter(function (x) {
+    if (def.rowPick && !def.rowPick(x)) return false; // No business: only the picked categories
     return !x.opt || rowT[x.k];
   });
   var cols = def.cols.filter(function (x) {
@@ -299,16 +310,28 @@ function render() {
         n.toLocaleString('en-GB') +
         '</button></td>';
     });
-    h += '<td class="tot">' + (rowT[rw.k] || 0).toLocaleString('en-GB') + '</td></tr>';
+    // totals are clickable: the row total lists the accounts of the whole row
+    h +=
+      '<td class="tot ck" onclick="selectLine(\'r\',\'' +
+      esc(String(rw.k)) +
+      '\')" title="See these accounts">' +
+      (rowT[rw.k] || 0).toLocaleString('en-GB') +
+      '</td></tr>';
   });
   h +=
     '<tr class="sum"><th class="yl"></th><th>Total</th>' +
     cols
       .map(function (c) {
-        return '<td class="tot">' + (colT[c.k] || 0).toLocaleString('en-GB') + '</td>';
+        return (
+          '<td class="tot ck" onclick="selectLine(\'c\',\'' +
+          esc(String(c.k)) +
+          '\')" title="See these accounts">' +
+          (colT[c.k] || 0).toLocaleString('en-GB') +
+          '</td>'
+        );
       })
       .join('') +
-    '<td class="tot grand"><b>' +
+    '<td class="tot grand ck" onclick="selectAllCells()" title="See all these accounts"><b>' +
     total.toLocaleString('en-GB') +
     '</b> acc.</td></tr>';
   h += '</tbody></table></div>';

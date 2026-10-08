@@ -9,7 +9,7 @@
  *      the current phase first, then the previous ones, then the upcoming ones
  *   3. the account details (tpAccountHtml): Account → Projects → Phase → that account's tick boxes
  * The reference (names, groups, types, phases) is TOUCHPOINTS / TP_GROUPS in core/config-js.
- * Shape = type: Added value → round ○, Deliverable → square □. Colour = group (soft shades).
+ * Every tick box is round (the type - added value / deliverable - is not shown). Colour = group (soft shades).
  * A tick belongs to one ACCOUNT on one PROJECT (tpChecked). For now on screen only (S.tpTemp, never saved, a reload
  * clears it). Later: TP_SOURCE (from the database) + TP_READONLY in core/config-js - then no ticking by hand.
  * "Real projects only" (core/data-js): internal accounts are gone (hiddenAcc), left-out projects are not shown.
@@ -30,10 +30,10 @@ function tpApplies(t, ph) {
   return t.ph === 'any' || (PHASES.indexOf(ph) >= 0 && t.ph.indexOf(ph) >= 0);
 }
 
-/** The touchpoints that apply to phase ph, in reference order. */
+/** The touchpoints that apply to phase ph, in reference order ('all' = every touchpoint of every phase). */
 function tpFor(ph) {
   return TOUCHPOINTS.filter(function (t) {
-    return tpApplies(t, ph);
+    return ph === 'all' || tpApplies(t, ph);
   });
 }
 
@@ -48,7 +48,7 @@ function realProject(o) {
 }
 
 function phaseLabel(ph) {
-  return ph === 'nophase' ? 'No phase' : ph;
+  return ph === 'nophase' ? 'No phase' : ph === 'all' ? 'All' : ph;
 }
 
 /** The visible accounts of a project ("Real projects only" removes internal accounts), A→Z. */
@@ -95,8 +95,7 @@ function tpClick(el, e) {
 function tpTick(pk, a, t) {
   var g = tpGroup(t.g);
   return (
-    '<button class="tpk ' +
-    t.type +
+    '<button class="tpk' +
     (tpChecked(pk, a, t.k) ? ' on' : '') +
     (TP_READONLY || TP_SOURCE ? ' ro' : '') +
     '" data-tp="' +
@@ -109,16 +108,14 @@ function tpTick(pk, a, t) {
   );
 }
 
-/** Legend: the group shades + the two shapes. */
+/** Legend: the group shades. */
 function tpLegendHtml() {
   return (
     '<div class="tpleg">' +
     TP_GROUPS.map(function (g) {
       return '<span class="tplg" style="--gc:' + g.c + ';--gl:' + g.l + '"><i></i>' + esc(g.t) + '</span>';
     }).join('') +
-    '<span class="tpsh"><span class="tpk av on" style="--gc:#8c9399"></span>Added value</span>' +
-    '<span class="tpsh"><span class="tpk del on" style="--gc:#8c9399"></span>Deliverable</span>' +
-    (TP_SOURCE ? '' : '<span class="meta">Ticks are for viewing only: not saved.</span>') +
+
     '</div>'
   );
 }
@@ -156,12 +153,8 @@ function tpMatrixHtml(x, ph) {
               '<th class="mt" style="--gl:' +
               x.g.l +
               '" title="' +
-              esc((t.type === 'av' ? 'Added value' : 'Deliverable') + ' · ' + (t.ph === 'any' ? 'any phase' : t.ph.join(', '))) +
-              '"><span class="tpk ' +
-              t.type +
-              '" style="--gc:' +
-              x.g.c +
-              '"></span>' +
+              esc(t.t + ' · ' + (t.ph === 'any' ? 'any phase' : t.ph.join(', '))) +
+              '">' +
               esc(t.t) +
               '</th>'
             );
@@ -200,7 +193,7 @@ function tpOpenHtml(x) {
   return (
     '<div class="tpx-h"><span class="meta">Phase</span>' +
     (PHASES.indexOf(x.ph) < 0 ? ['nophase'] : [])
-      .concat(PHASES)
+      .concat(PHASES, ['all'])
       .map(function (p) {
         return (
           '<button class="tpphb' +
@@ -219,7 +212,7 @@ function tpOpenHtml(x) {
       })
       .join('') +
     '<span class="meta">' +
-    (ph === x.ph ? 'current phase' : 'the current phase is ' + esc(phaseLabel(x.ph))) +
+    (ph === x.ph ? 'current phase' : ph === 'all' ? 'all touchpoints of every phase' : 'the current phase is ' + esc(phaseLabel(x.ph))) +
     '</span></div>' +
     tpMatrixHtml(x, ph)
   );
@@ -227,7 +220,13 @@ function tpOpenHtml(x) {
 
 function tpSetPh(id, ph) {
   S.tpPh[id] = ph;
-  renderList();
+  tpRefresh();
+}
+
+/** Draw the project tables again where they are on screen: the Touchpoints view and / or the account details. */
+function tpRefresh() {
+  if (S.listView === 'tp' && document.getElementById('tw')) renderList();
+  renderDetProjects();
 }
 
 /* ---------- 1. the Touchpoints view (Current pipeline): # | Project | Phase | Accounts ---------- */
@@ -243,16 +242,19 @@ function tpProjects(list) {
       out.push(S.prj[o.id]);
     });
   });
-  return out.sort(function (x, y) {
-    return x.name.localeCompare(y.name);
-  });
+  // the shared "Sort by": Account name → projects A→Z; any other sort → in the order of their first listed account
+  if (S.g.sort.k === 'name')
+    return out.sort(function (x, y) {
+      return x.name.localeCompare(y.name) * S.g.sort.d;
+    });
+  return out;
 }
 
 /** Open / close a project's table (click on its row). */
 function tpToggle(id) {
   if (S.tpOpenP[id]) delete S.tpOpenP[id];
   else S.tpOpenP[id] = 1;
-  renderList();
+  tpRefresh();
 }
 
 /** The accounts of a project, one under the other: "Account | Category". */
@@ -281,16 +283,25 @@ function renderTpTab(box, list) {
       list.length.toLocaleString('en-GB') +
       ' account' +
       (list.length === 1 ? '' : 's');
+  // the group colours go on the right of the tools row (the same place in every view), no text above the table
+  var leg = document.getElementById('dtLeg');
+  if (leg) leg.innerHTML = tpLegendHtml();
+  var h = tpProjTable(prj.slice(0, S.g.limit));
+  if (!prj.length) h += '<p class="hint nomatch">No open real projects for these accounts.</p>';
+  if (prj.length > S.g.limit)
+    h +=
+      '<button class="more" onclick="S.g.limit+=200;renderList()">Show more (' +
+      (prj.length - S.g.limit).toLocaleString('en-GB') +
+      ' left)</button>';
+  box.innerHTML = h;
+}
+
+/** The project table (Touchpoints view and account details): # | Project | Phase | Accounts; a click on a project
+ *  opens its accounts × touchpoints table right under it. */
+function tpProjTable(prj) {
   var h =
-    '<div class="tptop"><span class="tpn"><b>' +
-    prj.length.toLocaleString('en-GB') +
-    '</b> open project' +
-    (prj.length === 1 ? '' : 's') +
-    (S.clean ? ' (real projects only)' : '') +
-    '</span><span class="tpinfo">click a project to tick its touchpoints per account</span></div>' +
-    tpLegendHtml() +
     '<div class="tw tpw2"><table class="tb tpcomp"><thead><tr><th class="cnt">#</th><th class="pj">Project</th><th class="ph">Phase</th><th class="pa">Accounts</th></tr></thead><tbody>';
-  prj.slice(0, S.g.limit).forEach(function (x, n) {
+  prj.forEach(function (x, n) {
     var open = !!S.tpOpenP[x.id],
       jsId = esc(x.id).replace(/'/g, '&#39;');
     h +=
@@ -306,21 +317,16 @@ function renderTpTab(box, list) {
       (open ? '▾' : '▸') +
       '</span><b>' +
       esc(x.name || '(no name)') +
-      '</b></td><td class="ph"><span class="phb">' +
+      '</b>' +
+      (x.open ? '' : ' <span class="meta">closed</span>') +
+      '</td><td class="ph"><span class="phb">' +
       esc(phaseLabel(x.ph)) +
       '</span></td><td class="pa">' +
       tpAccList(x) +
       '</td></tr>';
     if (open) h += '<tr class="tpx"><td colspan="4">' + tpOpenHtml(x) + '</td></tr>';
   });
-  h += '</tbody></table></div>';
-  if (!prj.length) h += '<p class="hint nomatch">No open real projects for these accounts.</p>';
-  if (prj.length > S.g.limit)
-    h +=
-      '<button class="more" onclick="S.g.limit+=200;renderList()">Show more (' +
-      (prj.length - S.g.limit).toLocaleString('en-GB') +
-      ' left)</button>';
-  box.innerHTML = h;
+  return h + '</tbody></table></div>';
 }
 
 /* ---------- 2. the project pop-up: the table for every phase - current first, then previous, then upcoming ---------- */
@@ -376,50 +382,43 @@ function showPop(html, size) {
   box.classList.add('open');
 }
 
-/* ---------- 3. account details: Account → Projects → Phase → this account's tick boxes ---------- */
+/* ---------- 3. account details: the account's real projects in the same table (# | Project | Phase | Accounts) ---- */
 
+/** The account's real projects (each once): open ones first, then by phase (latest first), then A→Z. */
+function accProjects(a) {
+  var seen = {};
+  return a.pj
+    .filter(function (o) {
+      if (seen[o.id] || !realProject(o)) return false;
+      seen[o.id] = 1;
+      return true;
+    })
+    .map(function (o) {
+      return S.prj[o.id];
+    })
+    .sort(function (x, y) {
+      return y.open - x.open || PHASES.indexOf(y.ph) - PHASES.indexOf(x.ph) || x.name.localeCompare(y.name);
+    });
+}
+
+/** The Projects section of the details panel (drawn into #dPrj so it can be redrawn on its own). */
 function tpAccountHtml(a) {
-  var seen = {},
-    list = a.pj
-      .filter(function (o) {
-        if (seen[o.id] || !realProject(o)) return false;
-        seen[o.id] = 1;
-        return true;
-      })
-      .sort(function (x, y) {
-        return y.open - x.open || PHASES.indexOf(y.ph) - PHASES.indexOf(x.ph) || x.name.localeCompare(y.name);
-      });
-  if (!list.length) return '<p class="meta">No projects.</p>';
-  return (
-    tpLegendHtml() +
-    '<div class="tw"><table class="tb tpacc"><thead><tr><th class="cnt">#</th><th class="pj">Project</th><th class="ph">Phase</th><th>Touchpoints of this phase</th></tr></thead><tbody>' +
-    list
-      .map(function (o, n) {
-        return (
-          '<tr><td class="cnt">' +
-          (n + 1) +
-          '</td><td class="pj"><button class="lnk" onclick="openProject(\'' +
-          esc(o.id).replace(/'/g, '&#39;') +
-          '\')" title="All phases of this project, for all its accounts">' +
-          esc(o.name || '(no name)') +
-          '</button>' +
-          (o.open ? '' : ' <span class="meta">closed</span>') +
-          '</td><td class="ph"><span class="phb">' +
-          esc(phaseLabel(o.ph)) +
-          '</span></td><td><div class="tprow">' +
-          tpFor(o.ph)
-            .map(function (t) {
-              var g = tpGroup(t.g);
-              return (
-                '<label class="tpl" style="--gc:' + g.c + ';--gl:' + g.l + '">' + tpTick(o.id, a, t) + esc(t.t) + '</label>'
-              );
-            })
-            .join('') +
-          '</div></td></tr>'
-        );
-      })
-      .join('') +
-    '</tbody></table></div>'
-  );
+  return '<div id="dPrj" data-i="' + a.i + '">' + tpAccountInner(a) + '</div>';
+}
+
+function tpAccountInner(a) {
+  var list = accProjects(a);
+  return list.length ? tpLegendHtml() + tpProjTable(list) : '<p class="meta">No projects.</p>';
+}
+
+/** Redraws the Projects section of the open account details (after opening a project or picking a phase). */
+function renderDetProjects() {
+  var box = document.getElementById('dPrj');
+  if (!box || !document.getElementById('drawer').classList.contains('open')) return;
+  var a = S.acc[+box.getAttribute('data-i')];
+  var closed = box.querySelector('table.collapsed');
+  box.innerHTML = tpAccountInner(a);
+  addCollapse(box);
+  if (closed) box.querySelector('table.tb').classList.add('collapsed');
 }
 </script>

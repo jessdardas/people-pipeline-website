@@ -320,7 +320,7 @@ table.grid {
   border-radius: 8px;
   box-shadow: var(--shadow-lg);
   padding: 6px 4px;
-  min-width: 190px;
+  min-width: 270px;
   text-align: left;
 }
 .rp-h {
@@ -357,5 +357,13 @@ table.grid {
   margin-left: auto;
   color: var(--text-faint);
   font-size: 10.5px;
+}
+/* clickable totals (row, column, grand) */
+.grid td.tot.ck {
+  cursor: pointer;
+}
+.grid td.tot.ck:hover {
+  text-decoration: underline;
+  color: var(--accent);
 }
 </style>
