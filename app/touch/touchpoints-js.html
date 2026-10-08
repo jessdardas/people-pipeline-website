@@ -141,7 +141,7 @@ function tpMatrixHtml(x, ph) {
     '<div class="tpmw"><table class="tpm"><thead><tr><th class="ma" rowspan="2">Account</th>' +
     groups
       .map(function (x) {
-        return '<th class="mg" colspan="' + x.tps.length + '" style="--gc:' + x.g.c + ';--gl:' + x.g.l + '">' + esc(x.g.t) + '</th>';
+        return '<th class="mg" colspan="' + x.tps.length + '" style="--gc:' + x.g.c + ';--gl:' + x.g.l + '" title="' + esc(x.g.t) + '">' + esc(x.g.t) + '</th>';
       })
       .join('') +
     '</tr><tr>' +

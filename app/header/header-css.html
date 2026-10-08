@@ -356,49 +356,44 @@
   padding-bottom: 10px;
   border-bottom: none;
 }
-/* 1. BUSINESS | NO BUSINESS and 2. the map cards: the same look as the matrix boxes (matrix/matrix-css):
-   the selected one filled in the matrix blue, the others like an empty box (dashed, faded) */
+/* 1. BUSINESS | NO BUSINESS and 2. the map cards - minimal: thin border, barely rounded corners, no fill;
+   the selected one has a dark border and dark text, the others are quiet */
 .biz {
   display: flex;
   gap: 6px;
   flex: none;
+  padding-right: 34px; /* clear space between Business / No business and the maps */
+  margin-right: 10px;
+  border-right: 1px solid var(--line);
 }
 .biz button,
 .mcard {
-  border-radius: var(--cell-radius);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--heat-text);
-  background: transparent;
-  border: 1.5px dashed var(--line);
-  opacity: 0.55;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: var(--surface);
+  color: var(--text-faint);
   transition:
-    transform 0.12s,
-    box-shadow 0.12s,
-    opacity 0.12s;
+    border-color 0.12s,
+    color 0.12s;
 }
 .biz button:hover,
 .mcard:hover {
-  opacity: 0.9;
-  transform: translateY(-2px);
+  border-color: var(--text-faint);
+  color: var(--text-soft);
 }
 .biz button.on,
 .mcard.on {
-  opacity: 1;
-  border: 1.5px solid transparent;
-  background: var(--heat-high);
-  box-shadow: inset 0 0 0 3px var(--heat-selected);
+  border-color: var(--text);
+  color: var(--text);
 }
-/* BUSINESS | NO BUSINESS: a tiny bit bigger than a box */
 .biz button {
-  min-height: 62px;
-  min-width: 128px;
-  padding: 0 16px;
-  font-size: 16px;
-  letter-spacing: 0.06em;
+  min-height: 46px;
+  padding: 0 18px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
-/* the map cards: the size of a matrix box */
 .maps {
   display: flex;
   gap: 6px;
@@ -408,22 +403,26 @@
 .mcard {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  min-height: 56px;
-  min-width: 128px;
-  padding: 4px 12px;
-  text-align: center;
+  min-height: 46px;
+  min-width: 132px;
+  padding: 4px 14px;
+  text-align: left;
 }
 .mcard .mt {
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1.15;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
 }
 .mcard .mn {
   font-size: 11px;
-  font-weight: 600;
-  opacity: 0.7;
+  font-weight: 400;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.mcard.on .mn {
+  color: var(--text-soft);
 }
 .navr {
   margin-left: auto;
@@ -463,6 +462,10 @@
 @media (max-width: 760px) {
   .biz button {
     padding: 0 12px;
+  }
+  .biz {
+    padding-right: 0;
+    border-right: none;
   }
   .mcard {
     min-width: 0;

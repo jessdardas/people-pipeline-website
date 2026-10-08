@@ -366,4 +366,10 @@ table.grid {
   text-decoration: underline;
   color: var(--accent);
 }
+/* No business: a classification not picked = an empty gap, so the map keeps its size */
+.grid .gap {
+  background: transparent !important;
+  border: 1.5px solid transparent !important; /* same box size as a normal cell */
+  cursor: default;
+}
 </style>

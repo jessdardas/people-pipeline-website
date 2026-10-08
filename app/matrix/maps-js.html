@@ -113,18 +113,18 @@ var MAPS = {
   },
   5: {
     title: 'Past clients',
-    // past clients whose last project is 18+ months ago, by year: "2 years" = in the 2nd year (18–24 months),
-    // "3 years" = 24–36 months, "4 years" = 36–48 months, "5+ years" = 48 months or more
+    // past clients whose last project is 18+ months ago, in ranges like map 02:
+    // 1.5–2 years (18–24 months), 2–3 years, 3–4 years, 4+ years
     filter: function (a) {
       return a.cls === 'past client' && pastCol(a) === 3 && (!a.pj.length || keptProjects(a, false).length > 0);
     },
     x: 'Last project',
     y: 'Last meeting',
     cols: [
-      { k: 'y2', t: '2 years', s: '18–24 months' },
-      { k: 'y3', t: '3 years', s: '2–3 years' },
-      { k: 'y4', t: '4 years', s: '3–4 years' },
-      { k: 'y5', t: '5+ years', s: '4 years or more' },
+      { k: 'y2', t: '1.5–2 years' },
+      { k: 'y3', t: '2–3 years' },
+      { k: 'y4', t: '3–4 years' },
+      { k: 'y5', t: '4+ years' },
       { k: 'yn', t: '18+ months, no date', opt: 1 }
     ],
     rows: MEETING_ROWS,
@@ -138,12 +138,13 @@ var MAPS = {
   },
   3: {
     title: 'No business',
-    // the category cards above (S.nbCats, empty = all categories) pick which categories (rows) are shown
+    // the classification cards above (S.nbCls, empty = all) pick which classifications (columns) are counted;
+    // the columns not picked stay as empty space, so the map keeps its size
     filter: function (a) {
-      return NB.indexOf(a.cls) >= 0 && (!S.nbCats.length || S.nbCats.indexOf(catKey(a.category)) >= 0);
+      return NB.indexOf(a.cls) >= 0 && (!S.nbCls.length || S.nbCls.indexOf(a.cls) >= 0);
     },
-    rowPick: function (r) {
-      return !S.nbCats.length || S.nbCats.indexOf(r.k) >= 0;
+    colPick: function (c) {
+      return !S.nbCls.length || S.nbCls.indexOf(c.k) >= 0;
     },
     x: 'Classification',
     y: 'Account category',

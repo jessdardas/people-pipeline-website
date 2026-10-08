@@ -56,10 +56,10 @@ These are only in the website's `app\` (not in the Apps Script project).
 
 ### Navigation in 4 levels (`app\header\`)
 
-1. **BUSINESS | NO BUSINESS** – two boxes in the look of the matrix boxes (a bit bigger); the selected one is filled, the other faded.
-2. **The maps** – boxes the size and look of a matrix box (name + number of accounts):
-   - *Business*: **01 Current pipeline**, **02 Past pipeline** (past clients, last project 0–18 months) and **05 Past clients** (last project **18+ months**, by year: *2 years* = 18–24 months, *3 years* = 2–3 years, *4 years* = 3–4 years, *5+ years* = 4 years or more; rows = last meeting).
-   - *No business*: a box per **account category**. All categories are shown at first; click one to see only it, click others to add them – they show together in the No business map. Picking all shows all again. (There is no *All accounts* view any more.)
+1. **BUSINESS | NO BUSINESS** – two minimal boxes (thin border, barely rounded corners); the selected one has a dark border and dark text. A divider and clear space separate them from the maps.
+2. **The maps** – boxes in the same minimal look (name + number of accounts):
+   - *Business*: **01 Current pipeline**, **02 Past pipeline** (past clients, last project 0–18 months) and **05 Past clients** (last project **18+ months**, in ranges like Past pipeline: *1.5–2 years*, *2–3 years*, *3–4 years*, *4+ years*; rows = last meeting).
+   - *No business*: a box per **classification** (Past demand, Met in, Met out, Contacted, Not contacted). All are shown at first; click one to see only it, click others to add them. **The map keeps its size**: a classification that is not picked stays as an empty column. (There is no *All accounts* view any more.)
 3. **Service unit** and 4. **User** – the same look (no borders), the users right below the service units, starting at the same place.
 
 On the right: the two small switches and **Filters**. **Every total of the matrix is clickable** (row total, column total and the big total) and lists those accounts below.
@@ -92,7 +92,7 @@ The list of accounts under every map (after clicking a box, a row / column title
   - Every activity type has its own colour, the same everywhere.
   - **Week filter**: click a week title → tick activity types; only the accounts that had a ticked type that week stay (*clear* removes it).
   - **Click an account** → the touchpoints pop-up (site visit, Pub 1, Pub 2 … and what they did).
-- **Touchpoints** (map 01 only) – **#** | **Project** | **Phase** | **Accounts**, one row per unique open (real) project; the number of projects is in the list title. **Click a project** → a table opens under it: its accounts as rows, the touchpoints as columns, a round tick box per account. Buttons **P0 … P5** and **All** choose the phase (*All* = every touchpoint); every touchpoint column has the same width and its name starts at the top, so the spacing is identical from phase to phase.
+- **Touchpoints** (map 01 only) – **#** | **Project** | **Phase** | **Accounts**, one row per unique open (real) project; the number of projects is in the list title. **Click a project** → a table opens under it: its accounts as rows, the touchpoints as columns, a round tick box per account. Buttons **P0 … P5** and **All** choose the phase (*All* = every touchpoint); every touchpoint column has the same width, its name starts at the top, and both header rows (groups, touchpoints) have a fixed height, so nothing moves from phase to phase. The group colours are soft and muted.
 
 **Touchpoints – one system everywhere** (Touchpoints view, project pop-up, account details; `app\touch\touchpoints-js.html`): the reference (names, groups, types, phases) is `TOUCHPOINTS` / `TP_GROUPS` in `app\core\config-js.html` – 8 groups, each with its own **soft shade** (header line, ticked boxes) and **light tint** (the lit touchpoints). All tick boxes are **round** (the type – added value / deliverable – stays in the reference but is not shown). **A tick belongs to one account on one project.** For now every box starts unticked and can be ticked / unticked **on screen only: nothing is saved, a reload clears it.** Later the state will come from the database: set `TP_SOURCE` (a function project, account, touchpoint → ticked) and `TP_READONLY` in the config; the boxes then can no longer be changed by hand. The account details show the account's real projects in **the same table** (# | Project | Phase | Accounts, click to open).
 

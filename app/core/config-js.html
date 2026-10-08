@@ -168,14 +168,14 @@ var PUBLICATION_COL = /^pslabpublication(\d*)$/;
 // Groups: k = id, t = name, c = the group's colour (a soft shade: header line, ticked boxes), l = its light tint
 // (the background of the touchpoints that apply to the project's phase).
 var TP_GROUPS = [
-  { k: 'reach', t: 'Reach out', c: '#6f8fbf', l: '#e3ebf6' },
-  { k: 'design', t: 'Design', c: '#9a82b8', l: '#ece6f3' },
-  { k: 'tech', t: 'Technical', c: '#5f9e94', l: '#e0efec' },
-  { k: 'comm', t: 'Commercial', c: '#c09a5b', l: '#f5ecdd' },
-  { k: 'logi', t: 'Logistics', c: '#8c9399', l: '#eceeef' },
-  { k: 'site', t: 'Site', c: '#c27f74', l: '#f6e5e2' },
-  { k: 'close', t: 'Project closure', c: '#9c8a6a', l: '#efeae1' },
-  { k: 'brand', t: 'Brand', c: '#c486a6', l: '#f5e6ee' }
+  { k: 'reach', t: 'Reach out', c: '#8a9cb8', l: '#f1f4f8' },
+  { k: 'design', t: 'Design', c: '#a196b1', l: '#f4f2f7' },
+  { k: 'tech', t: 'Technical', c: '#86a5a0', l: '#f0f5f4' },
+  { k: 'comm', t: 'Commercial', c: '#b8a585', l: '#f7f4ee' },
+  { k: 'logi', t: 'Logistics', c: '#9ba1a6', l: '#f3f4f5' },
+  { k: 'site', t: 'Site', c: '#b8968f', l: '#f7f1f0' },
+  { k: 'close', t: 'Project closure', c: '#a89d89', l: '#f5f3ef' },
+  { k: 'brand', t: 'Brand', c: '#b398a8', l: '#f6f1f4' }
 ];
 // Touchpoints: k = id (also the future database reference), t = name, g = group, type = 'av' (Added value → round ○)
 // or 'del' (Deliverable → square □), ph = the phases it applies to ('any' = every phase, also projects without phase).
@@ -231,7 +231,7 @@ var S = {
   px: {}, // which PROJECT_EXCLUDE kinds that switch leaves out (filled from their "off" setting in build())
   noP0: true, // "Without P0" switch (maps 01 + 02)
   xm: false, // its small menu is open
-  nbCats: [], // No business: the categories picked with the cards (empty = all categories)
+  nbCls: [], // No business: the classifications picked with the cards (empty = all of them)
   dbFrom: '', // New DB: a date picked for this view only (not saved); '' = the admin date
   view: 1,
   db: 'pipeline', // 'pipeline' = everything, 'newdb' = only accounts validated on or after settings.newDbFrom

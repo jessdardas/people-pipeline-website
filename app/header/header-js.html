@@ -185,8 +185,8 @@ function renderUnits() {
 
 /* ---------- levels 1 + 2: BUSINESS | NO BUSINESS, then the maps of that choice ----------
    BUSINESS    → map cards 01 Current pipeline, 02 Past pipeline, 05 Past clients (one at a time)
-   NO BUSINESS → map 03, with a card per account category: click to pick one or several (S.nbCats; none = all),
-                 the map then shows only those categories - all of them at once when all are picked */
+   NO BUSINESS → map 03, with a card per classification (Past demand, Met in, Met out, Contacted, Not contacted):
+                 click to pick one or several (S.nbCls; none = all); the map keeps its size */
 var BIZ = [
   { k: 'business', t: 'Business', views: [1, 2, 5] },
   { k: 'nobusiness', t: 'No business', views: [3] }
@@ -239,18 +239,21 @@ function renderNav() {
       })
       .join('');
   else {
-    // No business: one card per category (with all categories counted, whatever is picked)
-    var keep = S.nbCats;
-    S.nbCats = [];
-    h = CATEGORY_ROWS.map(function (r) {
-      var n = S.acc.length
-        ? mapCount(3, function (a) {
-            return catKey(a.category) === r.k;
-          })
-        : 0;
-      return navCard(!keep.length || keep.indexOf(r.k) >= 0, 'setNbCat(\'' + r.k + '\')', r.t, n, 'Click to show only / add / remove this category');
-    }).join('');
-    S.nbCats = keep;
+    // No business: one card per classification (Past demand, Met in, Met out, Contacted, Not contacted), each with
+    // its accounts counted whatever is picked
+    var keep = S.nbCls;
+    S.nbCls = [];
+    h = MAPS[3].cols
+      .map(function (c) {
+        var n = S.acc.length
+          ? mapCount(3, function (a) {
+              return a.cls === c.k;
+            })
+          : 0;
+        return navCard(!keep.length || keep.indexOf(c.k) >= 0, 'setNbCls(\'' + c.k + '\')', c.t, n, 'Click to show only / add / remove this classification');
+      })
+      .join('');
+    S.nbCls = keep;
   }
   document.getElementById('tabs').innerHTML = h;
   renderSwitches();
@@ -264,16 +267,16 @@ function setBiz(k) {
   if (b.views.indexOf(S.view) < 0) setView(b.views[0]);
 }
 
-/** No business: all categories shown (S.nbCats empty) → a click shows only that one; then a click adds / removes a
- *  category. Removing the last one, or picking all of them, shows all categories again. */
-function setNbCat(k) {
-  if (!S.nbCats.length) S.nbCats = [k];
+/** No business: all classifications shown (S.nbCls empty) → a click shows only that one; then a click adds / removes
+ *  one. Removing the last one, or picking all of them, shows all again. */
+function setNbCls(k) {
+  if (!S.nbCls.length) S.nbCls = [k];
   else {
-    var i = S.nbCats.indexOf(k);
-    if (i >= 0) S.nbCats.splice(i, 1);
-    else S.nbCats.push(k);
+    var i = S.nbCls.indexOf(k);
+    if (i >= 0) S.nbCls.splice(i, 1);
+    else S.nbCls.push(k);
   }
-  if (S.nbCats.length === CATEGORY_ROWS.length) S.nbCats = [];
+  if (S.nbCls.length === MAPS[3].cols.length) S.nbCls = [];
   if (S.view !== 3) S.view = 3;
   changed();
 }

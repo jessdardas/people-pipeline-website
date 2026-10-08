@@ -227,13 +227,17 @@ function render() {
   });
   var total = data.length;
   var rows = def.rows.filter(function (x) {
-    if (def.rowPick && !def.rowPick(x)) return false; // No business: only the picked categories
     return !x.opt || rowT[x.k];
   });
-  var cols = def.cols.filter(function (x) {
-    if (def.hideCol && def.hideCol(x)) return false; // e.g. map 01 without the P0 column
-    return !x.opt || colT[x.k];
-  });
+  var cols = def.cols
+    .filter(function (x) {
+      if (def.hideCol && def.hideCol(x)) return false; // e.g. map 01 without the P0 column
+      return !x.opt || colT[x.k];
+    })
+    .map(function (x) {
+      // No business: a classification that is not picked stays as an empty gap (the map keeps its size)
+      return def.colPick && !def.colPick(x) ? Object.assign({}, x, { gap: 1 }) : x;
+    });
   var max = 0;
   Object.keys(cells).forEach(function (k) {
     max = Math.max(max, cells[k].length);
@@ -252,6 +256,7 @@ function render() {
     cols
       .map(function (c) {
         // every data column gets the same width; the label and Total columns only take what they need
+        if (c.gap) return '<th class="col gap" style="width:' + (94 / cols.length).toFixed(2) + '%"></th>';
         return (
           '<th class="col" style="width:' +
           (94 / cols.length).toFixed(2) +
@@ -275,6 +280,7 @@ function render() {
       (rw.s ? '<small>' + esc(rw.s) + '</small>' : '') +
       '</th>';
     cols.forEach(function (c) {
+      if (c.gap) return (h += '<td class="c gap"></td>');
       var list = cells[rw.k + '§' + c.k] || [],
         n = list.length,
         key = String(rw.k) + '§' + String(c.k);
@@ -322,6 +328,7 @@ function render() {
     '<tr class="sum"><th class="yl"></th><th>Total</th>' +
     cols
       .map(function (c) {
+        if (c.gap) return '<td class="tot gap"></td>';
         return (
           '<td class="tot ck" onclick="selectLine(\'c\',\'' +
           esc(String(c.k)) +

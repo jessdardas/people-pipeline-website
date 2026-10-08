@@ -81,9 +81,9 @@ function goTo(i) {
     S.db = 'pipeline';
     adj.push('New DB → People pipeline');
   }
-  if (loc.v === 3 && S.nbCats.length && S.nbCats.indexOf(catKey(a.category)) < 0) {
-    S.nbCats = [];
-    adj.push('category');
+  if (loc.v === 3 && S.nbCls.length && S.nbCls.indexOf(a.cls) < 0) {
+    S.nbCls = [];
+    adj.push('classification');
   }
   if (loc.v === 1 && S.pipes.length && S.pipes.indexOf(a.pipe) < 0) {
     if (a.pipe) S.pipes.push(a.pipe);

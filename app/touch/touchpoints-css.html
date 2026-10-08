@@ -207,12 +207,20 @@ table.tpm td.ma .lnk {
   font-weight: 600;
   text-decoration: none;
 }
+/* the group row and the touchpoint row have a fixed height (names never change it), so nothing moves between phases */
 table.tpm th.mg {
   background: var(--gl);
   border-bottom: 2px solid var(--gc);
   font-size: 11px;
   font-weight: 700;
+  color: var(--text-soft);
   text-align: center;
+  height: 30px;
+  max-height: 30px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 0; /* lets a one-column group shorten its name with … instead of growing */
 }
 /* every touchpoint column has the same width and its name starts at the top, so switching phases keeps the
    spacing identical */
@@ -238,6 +246,10 @@ table.tpm th.mt {
   white-space: normal;
   overflow-wrap: anywhere;
   vertical-align: top;
+  height: 44px; /* room for 3 lines; the same in every phase */
+}
+table.tpm thead tr:first-child th.ma {
+  height: 30px;
 }
 table.tpm th.ma {
   vertical-align: top;
