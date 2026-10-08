@@ -1,19 +1,13 @@
 <script>
 /* Refresh info, service unit buttons, pipeline menu, tabs */
-/** "Last updated at …" = the last date written in data/refresh-log.txt on the server (site/source.js reads it);
- *  without that file, the time the Excel file last changed. ↻ = read the file again now (refresh() in
- *  core/main-js). The page never refreshes by itself. */
+/** "Last updated at …" = the newest successful (OK) refresh in data/refresh-log.txt (site/source.js reads it; ERROR
+ *  lines are ignored); without such a line, the time the Excel file last changed. No refresh button: the page reads
+ *  the data when it opens. */
 function renderRefresh() {
   var s = S.source,
     when = s.refreshed || (s.updated ? fmtTs(s.updated) : '');
   document.getElementById('rf').innerHTML = when
-    ? '<span title="' +
-      esc((s.name || '') + ' · file last changed ' + fmtTs(s.updated)) +
-      '">Last updated at <b>' +
-      esc(when) +
-      '</b></span><button onclick="refresh()" title="Read the data again now">' +
-      (S.busy ? '…' : '↻') +
-      '</button>'
+    ? '<span title="' + esc((s.name || '') + ' · file last changed ' + fmtTs(s.updated)) + '">Last updated at <b>' + esc(when) + '</b></span>'
     : S.busy
       ? 'Loading…'
       : '';
@@ -59,12 +53,14 @@ function setDb(db) {
 function renderOwners() {
   var box = document.getElementById('owners');
   if (!S.units.length) {
-    box.innerHTML = '';
-    box.style.display = 'none';
+    box.innerHTML = '<span class="olbl">User</span><span class="ohint">Pick a service unit above to see its users</span>';
+    box.style.display = '';
     return;
   }
   var cnt = {};
   S.acc.forEach(function (a) {
+    // "Real projects only": no internal accounts, and internal users are never listed
+    if (hiddenAcc(a) || (S.clean && S.px.own && INTERNAL_USERS.test(a.owner))) return;
     if (S.units.indexOf(a.su) >= 0) {
       var o = a.owner || '(none)';
       cnt[o] = (cnt[o] || 0) + 1;
@@ -76,7 +72,7 @@ function renderOwners() {
   S._owners = list;
   box.style.display = '';
   box.innerHTML =
-    '<span class="olbl">Owner</span><button class="' +
+    '<span class="olbl">User</span><button class="' +
     (S.owners.length ? '' : 'on') +
     '" onclick="setOwner(null)">All</button>' +
     list
@@ -184,25 +180,72 @@ function renderUnits() {
   // pipelines only apply to map 01 (the other maps always show every pipeline)
   document.getElementById('pipes').innerHTML = S.view === 1 ? '<span class="pw">' + p + '</span>' : '';
 
+  renderNav();
+}
+
+/* ---------- levels 1 + 2: BUSINESS | NO BUSINESS, then the maps of that choice ---------- */
+// which maps belong to each choice (MAPS in matrix/maps-js); "All accounts" (4) is a small link next to the maps
+var BIZ = [
+  { k: 'business', t: 'Business', views: [1, 2] },
+  { k: 'nobusiness', t: 'No business', views: [3] }
+];
+
+function bizOf(view) {
+  return BIZ.filter(function (b) {
+    return b.views.indexOf(view) >= 0;
+  })[0];
+}
+
+/** Accounts of map v for the current selection (the number on its card). */
+function mapCount(v) {
+  var keep = S.view;
+  S.view = v; // pass() depends on the map (pipelines only count on map 01)
+  var n = S.acc.filter(function (a) {
+    return MAPS[v].filter(a) && pass(a);
+  }).length;
+  S.view = keep;
+  return n;
+}
+
+function renderNav() {
+  var cur = bizOf(S.view);
+  document.getElementById('biz').innerHTML = BIZ.map(function (b) {
+    return (
+      '<button class="' + (cur === b ? 'on' : '') + '" onclick="setBiz(\'' + b.k + '\')">' + esc(b.t) + '</button>'
+    );
+  }).join('');
+  var views = (cur || BIZ[0]).views;
   document.getElementById('tabs').innerHTML =
-    [1, 2, 3]
+    views
       .map(function (i) {
+        var n = S.acc.length ? mapCount(i) : 0;
         return (
-          '<button class="' +
+          '<button class="mcard ' +
           (S.view === i ? 'on' : '') +
           '" onclick="setView(' +
           i +
-          ')"><b>0' +
+          ')"><span class="mno">0' +
           i +
-          '</b>' +
-          MAPS[i].title +
-          '</button>'
+          '</span><span class="mt">' +
+          esc(MAPS[i].title) +
+          '</span><span class="mn">' +
+          n.toLocaleString('en-GB') +
+          ' accounts</span></button>'
         );
       })
       .join('') +
-    '<button class="far ' +
+    '<button class="mall ' +
     (S.view === 4 ? 'on' : '') +
     '" onclick="setView(4)">All accounts</button>';
+  renderSwitches();
+}
+
+/** BUSINESS → map 01 (or stays on 02); NO BUSINESS → map 03. */
+function setBiz(k) {
+  var b = BIZ.filter(function (x) {
+    return x.k === k;
+  })[0];
+  if (b.views.indexOf(S.view) < 0) setView(b.views[0]);
 }
 
 function setUnit(u) {
@@ -300,7 +343,7 @@ document.addEventListener('mousedown', function (e) {
   }
   if (S.xm && !e.target.closest('.rp')) {
     S.xm = false;
-    render();
+    renderSwitches();
   }
 });
 </script>

@@ -253,6 +253,7 @@ function closeCell() {
  *  Account listing - left: views, search, Columns; right, far away: "check to export", Excel, PDF.
  *  Stay in touch policy - only the views and the search. */
 function listBlock(meta, closable) {
+  if (S.listView === 'tp' && S.view !== 1) S.listView = 'list'; // Touchpoints only exists on Current pipeline
   return (
     '<div class="inl" id="inl"><div class="inh"><div><h2 id="gCount"></h2><div class="meta">' +
     esc(meta) +
@@ -264,7 +265,12 @@ function listBlock(meta, closable) {
     (S.listView === 'list' ? 'on' : '') +
     '" onclick="setListView(\'list\')">Account listing</button><button class="' +
     (S.listView === 'touch' ? 'on' : '') +
-    '" onclick="setListView(\'touch\')">Stay in touch policy</button></div>' +
+    '" onclick="setListView(\'touch\')">Stay in touch policy</button>' +
+    // Touchpoints: Current pipeline only (touch/touchpoints-js)
+    (S.view === 1
+      ? '<button class="' + (S.listView === 'tp' ? 'on' : '') + '" onclick="setListView(\'tp\')">Touchpoints</button>'
+      : '') +
+    '</div>' +
     '<input id="dSearch" placeholder="Search in this list…" value="' +
     esc(S.g.q) +
     '" oninput="S.g.q=this.value;S.g.limit=100;renderList()">' +
@@ -350,7 +356,9 @@ function renderList() {
   S._shown = list;
   var c = document.getElementById('gCount');
   if (c) c.textContent = list.length.toLocaleString('en-GB') + ' account' + (list.length === 1 ? '' : 's');
+  if (S.listView === 'tp' && S.view !== 1) S.listView = 'list'; // Touchpoints only exists on Current pipeline
   if (S.listView === 'touch') return renderStay(box, list); // Stay in touch policy (touch/touch-js)
+  if (S.listView === 'tp') return renderTpTab(box, list); // Touchpoints (touch/touchpoints-js)
   var h =
     '<table class="tb' +
     (S.pickMode ? ' picking' : '') +

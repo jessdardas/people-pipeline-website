@@ -16,7 +16,7 @@ var SITE = {
   last: null, // hash of the last data read
   // shown very small at the bottom left of the page, so you can check that the server runs the newest version
   // (change it with every update: the date + a word about what changed)
-  version: 'version 2026-10-02 · stay in touch: weeks only',
+  version: 'version 2026-10-08 · business nav, touchpoints',
   // Faster opening: the data read from the Excel file is kept in this browser (IndexedDB) together with the
   // file's date + size. Next time, if the file on the server has the same date + size, the kept copy is used
   // and the Excel file is not downloaded or decoded again. Change cacheVersion when server/Pipeline.js changes
@@ -163,7 +163,12 @@ function siteReadFast() {
 // a date (+ time) as people / scripts write it: 28/09/2026 10:00, 2026-09-28T10:00:05, 28-09-2026 10:00 AM, 28 Sep 2026 10:00
 var LOG_DATE = /\d{4}-\d{1,2}-\d{1,2}(?:[ T]+\d{1,2}:\d{2}(?::\d{2})?)?|\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4}(?:[ ,]+\d{1,2}:\d{2}(?::\d{2})?(?:\s?[AaPp][Mm])?)?|\d{1,2} [A-Za-z]{3,9}\.? \d{4}(?:[ ,]+\d{1,2}:\d{2}(?::\d{2})?)?/g;
 
-/** "Last updated at": the last date written in the refresh log ('' when there is no such file / no date in it). */
+/** "Last updated at": the newest SUCCESSFUL refresh in the refresh log ('' when there is none).
+ *  Only lines with a date AND the word OK count (e.g. "2026-10-08 09:00:12 OK", "08/10/2026 09:00 - OK").
+ *  A line with ERROR is ignored completely, even if it also says OK - error times are never shown. */
+var LOG_OK = /\bOK\b/i;
+var LOG_ERROR = /\bERRORS?\b|\bFAIL(ED|URE)?\b/i;
+
 function siteRefreshed() {
   return fetch(encodeURI(SITE.refreshFile) + '?t=' + Date.now(), { cache: 'no-store' })
     .then(function (r) {
@@ -171,14 +176,8 @@ function siteRefreshed() {
     })
     .then(function (buf) {
       if (!buf) return '';
-
       var b = new Uint8Array(buf),
-        enc = b[0] === 0xff && b[1] === 0xfe
-          ? 'utf-16le'
-          : b[0] === 0xfe && b[1] === 0xff
-            ? 'utf-16be'
-            : 'utf-8';
-
+        enc = b[0] === 0xff && b[1] === 0xfe ? 'utf-16le' : b[0] === 0xfe && b[1] === 0xff ? 'utf-16be' : 'utf-8'; // Notepad "Unicode" = UTF-16
       var lines = new TextDecoder(enc)
         .decode(buf)
         .replace(/^\uFEFF/, '')
@@ -187,30 +186,25 @@ function siteRefreshed() {
           return x.trim();
         })
         .filter(Boolean);
-
-      // From the bottom up: find the last line containing a date
-      for (var i = lines.length - 1; i >= 0; i--) {
-        var m = lines[i].match(LOG_DATE);
-
-        if (m) {
-          var rawDate = m[m.length - 1].trim();
-          var date = new Date(rawDate);
-
-          if (!isNaN(date.getTime())) {
-            return '' + date.toLocaleDateString('en-GB', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric'
-            }) + ' at ' + date.toLocaleTimeString('en-GB', {
-              hour: '2-digit',
-              minute: '2-digit'
-            });
-          }
-
-          return rawDate;
-        }
-      }
-
+      // every line with a date that says OK (and no ERROR); the newest time wins (toSerial_ in server/Pipeline.js
+      // reads 2026-10-08 09:00, 08/10/2026 09:00, 10/8/2026 9:00 AM …); unreadable dates count by their position
+      var best = null;
+      lines.forEach(function (line, i) {
+        if (!LOG_OK.test(line) || LOG_ERROR.test(line)) return;
+        var m = line.match(LOG_DATE);
+        if (!m) return;
+        var raw = m[m.length - 1].trim(),
+          t = toSerial_(raw);
+        if (!best || (t != null && (best.t == null || t >= best.t)) || (t == null && best.t == null)) best = { raw: raw, t: t };
+      });
+      if (!best) return '';
+      if (best.t == null) return best.raw;
+      var d = new Date(Math.round((best.t - 25569) * 864e5)); // Excel date number → time (UTC = as written)
+      return (
+        d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) +
+        ' at ' +
+        d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })
+      );
       return '';
     })
     .catch(function () {

@@ -99,6 +99,7 @@ function newDbSerial() {
 }
 
 function pass(a, skip) {
+  if (hiddenAcc(a)) return false; // "Real projects only": accounts linked to internal users are gone everywhere
   if (skip !== 'units' && S.units.length && S.units.indexOf(a.su) < 0) return false;
   if (skip !== 'owners' && S.owners.length && S.owners.indexOf(a.owner || '(none)') < 0) return false;
   // pipelines only count on map 01; the other maps always show every pipeline

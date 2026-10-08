@@ -71,6 +71,8 @@ function popOptions(k) {
     }
   } else
     S.acc.forEach(function (a) {
+      // "Real projects only": no values of internal accounts / internal users in the lists
+      if (hiddenAcc(a) || (k === 'owner' && S.clean && S.px.own && INTERNAL_USERS.test(a.owner))) return;
       if (!(a.fv[k] in cnt)) cnt[a.fv[k]] = 0;
     });
   var sel = (sf ? S.SF[k] : S.F[k]) || [];

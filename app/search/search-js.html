@@ -8,7 +8,7 @@ function gSearch() {
     return;
   }
   var res = S.acc.filter(function (a) {
-    return a.lname.indexOf(q) >= 0;
+    return a.lname.indexOf(q) >= 0 && !hiddenAcc(a); // "Real projects only": internal accounts are not found
   });
   res.sort(function (a, b) {
     return (b.lname.indexOf(q) === 0) - (a.lname.indexOf(q) === 0) || a.name.length - b.name.length;

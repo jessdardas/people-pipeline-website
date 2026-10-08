@@ -74,7 +74,7 @@ var MAPS = {
     }
   },
   2: {
-    title: 'Past clients',
+    title: 'Past pipeline', // past clients
     // an account whose projects are ALL left out ("Without P0" / "Real projects only") leaves the map
     filter: function (a) {
       return a.cls === 'past client' && (!a.pj.length || keptProjects(a, false).length > 0);

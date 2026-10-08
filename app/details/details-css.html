@@ -323,4 +323,48 @@
 .actl .ax.open {
   display: block;
 }
+/* collapse arrow in the table headers (addCollapse() in details/details-js) */
+.det .clp {
+  width: 20px;
+  height: 20px;
+  margin-right: 2px;
+  border-radius: 5px;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-soft);
+  transition: transform 0.15s;
+}
+.det .clp:hover {
+  background: var(--line);
+  color: var(--text);
+}
+.det th.cnt {
+  white-space: nowrap;
+}
+.det table.collapsed tbody {
+  display: none;
+}
+.det table.collapsed .clp,
+.det #actBox.collapsed .clp {
+  transform: rotate(-90deg);
+}
+.det #actBox.collapsed .actl,
+.det #actBox.collapsed .actf button:not(.clp),
+.det #actBox.collapsed .acth > .lnk {
+  display: none;
+}
+.det .actf .clp {
+  border: none;
+  padding: 0;
+  justify-content: center;
+}
+.det h3.collapsed + .kv {
+  display: none;
+}
+.det h3.collapsed .clp {
+  transform: rotate(-90deg);
+}
+.det h3 .clp {
+  vertical-align: middle;
+}
 </style>

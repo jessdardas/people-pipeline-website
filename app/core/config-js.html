@@ -85,9 +85,20 @@ var PROJECT_EXCLUDE = [
   // internal project owners (OwnerName column): a word of the name STARTS with one of these, so "CYBEL" also
   // matches "Cybelle …", "SAM" matches "Sam …" and "Sammy …", "PSLAB" matches the pslab-… teams.
   // To match a whole name only, write it in full with \b at the end, e.g. sam saad\b
-  { k: 'own', t: 'Internal owner', owner: /\b(roland|cybel|roger|sam|dany daaboul|pslab)/i, off: 1 }
+  { k: 'own', t: 'Internal owner', owner: /\b(roland|cybel|roger|sam|dany daaboul|pslab)/i, off: 1 } // same names as INTERNAL_USERS
 ];
 var INTERNAL_KINDS = ['inn', 'ico', 'rfp', 'own']; // shown → the "other (i.n. ...)" column on map 01
+
+// "Real projects only" ON (with these kinds ticked in its ▾ menu) removes WHOLE ACCOUNTS from the entire dashboard
+// (maps, lists, search, users, exports, details) - not only their projects - when:
+//   - the account has at least one project of one of these kinds (own = a project owned by an internal user), or
+//   - the account's own owner is an internal PERSON (INTERNAL_USERS: Roland, Cybel(le), Roger, Sam(my), Dany Daaboul).
+//     The service-unit team owners (pslab-london, pslab-beirut, …) are NOT internal users: in the file they own most
+//     accounts (about 17,500 of 23,000), so they stay. (For PROJECT owners, PSLAB does count - see the 'own' kind.)
+// Internal people are also never listed in the Users row, the Filters panel or as activity owners.
+// Add 'inn' / 'ico' to ACCOUNT_EXCLUDE_KINDS to remove the accounts of those projects too.
+var ACCOUNT_EXCLUDE_KINDS = ['own'];
+var INTERNAL_USERS = /\b(roland|cybel|roger|sam|dany daaboul)/i;
 
 // The project owner column of the projects sheet (column names in lower case, letters only): the first of these
 // patterns that matches a column wins ("project owner" before any other column with "owner" in its name).
@@ -106,23 +117,39 @@ var PROJECT_DATE_COLS = [/datein/, /actualclosedate/];
 var ACT_COLS = {
   date: [/actualend/, /actualstart/, /scheduledstart/, /scheduledend/, /^(date|activitydate)$/, /date/, /createdon/],
   type: [/^activitytype/, /activitytypecode/, /^type$/, /type/, /category/],
-  subject: [/^subject$/, /subject/, /title/, /description/, /name$/]
+  subject: [/^subject$/, /subject/, /title/, /description/, /name$/],
+  owner: [/^owneridname$/, /^ownername$/, /owner/] // "Real projects only" hides activities of internal users
 };
 // Activities of these types are not shown anywhere (type or, without a type, subject).
 var ACT_HIDE = /\btasks?\b/i;
-// Colour of each activity type (first match wins); other types get a colour from ACT_OTHER_COLORS.
+// Colour of each activity type - the same type always has the same colour everywhere (weeks, legend, pop-up,
+// account details). Known types first (first match wins, so the specific ones come before the general ones);
+// every other type found in the file gets the next free colour of ACT_OTHER_COLORS, in A→Z order of the type names.
 var ACT_COLORS = [
-  { re: /meeting|appointment/i, bg: '#d6e4fb', fg: '#1f4f9a' },
-  { re: /phone|call/i, bg: '#d8f1df', fg: '#22693a' },
-  { re: /e-?mail/i, bg: '#fdecc8', fg: '#8a5a00' },
-  { re: /site\s*-?\s*visit|visit/i, bg: '#ead9f7', fg: '#6a2f97' },
-  { re: /letter|post|mail/i, bg: '#f9dad7', fg: '#9b2c22' }
+  { re: /site\s*-?\s*visit/i, bg: '#ead9f7', fg: '#6a2f97' }, // Site visit - purple
+  { re: /meeting.*\bout\b|\bout\b.*meeting/i, bg: '#d6e4fb', fg: '#1f4f9a' }, // Meeting - Out - blue
+  { re: /meeting.*\bin\b|\bin\b.*meeting/i, bg: '#cdeef3', fg: '#0f5f6b' }, // Meeting - In - teal
+  { re: /intro/i, bg: '#e1e7fd', fg: '#3540a0' }, // Intro meeting - indigo
+  { re: /video|teams|zoom|online|virtual/i, bg: '#fde2cf', fg: '#9a4410' }, // Video call - orange
+  { re: /phone|call/i, bg: '#d8f1df', fg: '#22693a' }, // Phone call - green
+  { re: /e-?mail/i, bg: '#fdecc8', fg: '#8a5a00' }, // Email - yellow
+  { re: /workshop/i, bg: '#f6dcec', fg: '#8c2c66' }, // Workshop - pink
+  { re: /meeting|appointment/i, bg: '#dfe6ef', fg: '#34495e' }, // other meetings - slate
+  { re: /letter|post/i, bg: '#f9dad7', fg: '#9b2c22' } // Letter - red
 ];
 var ACT_OTHER_COLORS = [
   { bg: '#d4f0f0', fg: '#1d6363' },
-  { bg: '#f6dcec', fg: '#8c2c66' },
   { bg: '#e8ecd2', fg: '#56611a' },
-  { bg: '#e6e1f5', fg: '#463a8a' }
+  { bg: '#e6e1f5', fg: '#463a8a' },
+  { bg: '#f3e3d3', fg: '#7a4a1c' },
+  { bg: '#dcefe6', fg: '#2c6650' },
+  { bg: '#f0dde1', fg: '#7d2e3e' },
+  { bg: '#e2ecf7', fg: '#2d5684' },
+  { bg: '#efe9cf', fg: '#6b5b13' },
+  { bg: '#e9dcf0', fg: '#5f3577' },
+  { bg: '#dbe9e9', fg: '#365c5c' },
+  { bg: '#f2e0ea', fg: '#7a3359' },
+  { bg: '#e4e4e4', fg: '#444444' }
 ];
 // The weeks shown: this many weeks before and after this week.
 var WEEKS_BEFORE = 5;
@@ -135,6 +162,58 @@ var WEEKS_AFTER = 10;
 var SITE_VISIT_COL = /sitevisit/;
 var SITE_VISIT_ACT = /site\s*-?\s*visit/i;
 var PUBLICATION_COL = /^pslabpublication(\d*)$/;
+
+// --- TOUCHPOINTS: the reference (source of truth) ------------------------------------------------------------
+// Used by the Touchpoints tab (Current pipeline), the project pop-up and the account details (app/touch/touchpoints-js).
+// Groups: k = id, t = name, c = the group colour (kept subtle: a thin border / dot).
+var TP_GROUPS = [
+  { k: 'reach', t: 'Reach out', c: '#4a7fd4' },
+  { k: 'design', t: 'Design', c: '#9b59b6' },
+  { k: 'tech', t: 'Technical', c: '#16a085' },
+  { k: 'comm', t: 'Commercial', c: '#d68910' },
+  { k: 'logi', t: 'Logistics', c: '#7f8c8d' },
+  { k: 'site', t: 'Site', c: '#c0392b' },
+  { k: 'close', t: 'Project closure', c: '#8e6c3a' },
+  { k: 'brand', t: 'Brand', c: '#d4519c' }
+];
+// Touchpoints: k = id (also the future database reference), t = name, g = group, type = 'av' (Added value → round ○)
+// or 'del' (Deliverable → square □), ph = the phases it applies to ('any' = every phase, also projects without phase).
+var TOUCHPOINTS = [
+  { k: 'meeting', t: 'Meeting In / Out / Intro', g: 'reach', type: 'av', ph: ['P0'] },
+  { k: 'workshop', t: 'Workshop', g: 'design', type: 'del', ph: ['P0', 'P1', 'P2'] },
+  { k: 'pitch', t: 'Pitch', g: 'design', type: 'av', ph: ['P0', 'P1'] },
+  { k: 'dcp', t: 'DCP + DCP Feedback', g: 'design', type: 'del', ph: ['P1'] },
+  { k: 'tcp', t: 'TCP + TCP Feedback', g: 'tech', type: 'del', ph: ['P2'] },
+  { k: 'boq', t: 'Bill of Quantity (BOQ)', g: 'tech', type: 'del', ph: ['P2'] },
+  { k: 'specbook', t: 'Specbook', g: 'tech', type: 'del', ph: ['P2'] },
+  { k: 'install', t: 'Installation Guide', g: 'tech', type: 'del', ph: ['P2'] },
+  { k: 'proposal', t: 'Proposal', g: 'comm', type: 'del', ph: ['P0'] },
+  { k: 'budget', t: 'Budget Letter', g: 'comm', type: 'del', ph: ['P1'] },
+  { k: 'offer', t: 'Product Offer', g: 'comm', type: 'del', ph: ['P2'] },
+  { k: 'invoice', t: 'Invoice', g: 'comm', type: 'del', ph: ['P0', 'P1', 'P2', 'P3'] },
+  { k: 'order', t: 'Order Confirmation', g: 'logi', type: 'del', ph: ['P3'] },
+  { k: 'delivery', t: 'Delivery Update', g: 'logi', type: 'del', ph: ['P3', 'P4'] },
+  { k: 'testing', t: 'Product Testing Report', g: 'logi', type: 'del', ph: ['P3'] },
+  { k: 'crates', t: 'Product Crates', g: 'logi', type: 'del', ph: ['P4'] },
+  { k: 'shipping', t: 'Shipping + AWB + POD', g: 'logi', type: 'del', ph: ['P4'] },
+  { k: 'images', t: 'Product Images', g: 'logi', type: 'av', ph: ['P3', 'P4'] },
+  { k: 'sitevisit', t: 'Site Visit', g: 'site', type: 'del', ph: ['P0', 'P1', 'P2', 'P3', 'P4', 'P5'] },
+  { k: 'sitereport', t: 'Site Report', g: 'site', type: 'del', ph: ['P0', 'P1', 'P2', 'P3', 'P4', 'P5'] },
+  { k: 'mockup', t: 'Mockup', g: 'site', type: 'av', ph: ['P1', 'P2'] },
+  { k: 'aiming', t: 'Light Setup / Aiming', g: 'close', type: 'del', ph: ['P5'] },
+  { k: 'gifts', t: 'Gifts', g: 'close', type: 'av', ph: 'any' },
+  { k: 'testimonials', t: 'Testimonials', g: 'close', type: 'av', ph: ['P5'] },
+  { k: 'events', t: 'Events', g: 'brand', type: 'av', ph: 'any' },
+  { k: 'collab', t: 'Collaborations', g: 'brand', type: 'av', ph: 'any' },
+  { k: 'publications', t: 'Publications', g: 'brand', type: 'av', ph: 'any' },
+  { k: 'booklet', t: 'Project Booklet', g: 'brand', type: 'av', ph: ['P1', 'P2', 'P5'] }
+];
+// Ticked or not: for now every touchpoint starts unticked and can be ticked / unticked on screen only (nothing is
+// saved; a reload clears it). A tick belongs to one project, one phase and one touchpoint. Later the state comes from
+// the database: set TP_SOURCE to a function (projectKey, phase, touchpointKey) → true / false and TP_READONLY to
+// true - nothing else has to change.
+var TP_SOURCE = null;
+var TP_READONLY = false;
 
 // --- app state (what is selected right now) - changed by the app, not by hand ---
 // units/pipes = selected service units / pipelines (empty = all),
@@ -156,8 +235,13 @@ var S = {
   db: 'pipeline', // 'pipeline' = everything, 'newdb' = only accounts validated on or after settings.newDbFrom
   settings: { newDbFrom: '2026-07-01' }, // shared settings from the server (admin panel)
   owners: [], // owners picked under the service units (empty = all owners)
-  listView: 'list', // the account list under the maps: 'list' = Account listing, 'touch' = Stay in touch policy
+  listView: 'list', // the list under the maps: 'list' = Account listing, 'touch' = Stay in touch policy,
+  //                 'tp' = Touchpoints (Current pipeline only)
   tpOpen: null, // Stay in touch policy: the account whose touchpoints pop-up is open (account index)
+  wf: null, // Stay in touch policy: week filter { start (Monday of the week), types: { 'Site visit': 1, … } }
+  wm: null, // Stay in touch policy: the week whose filter menu is open (Monday), or null
+  tpTemp: {}, // touchpoints ticked on screen ("projectKey|touchpointKey" = 1) - temporary, never saved
+  staySort: 'name', // Stay in touch policy: sort - 'name' (default), 'recent', 'most', 'unit'
   pickMode: false, // "check to export" is ticked: tick boxes in the # column of the account table
   pick: {}, // the accounts ticked for export (account id = 1); kept until "clear" or the page is closed
   sel: [], // selected matrix cells ("row§column"); their accounts are listed under the matrix

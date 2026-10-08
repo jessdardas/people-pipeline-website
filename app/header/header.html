@@ -12,20 +12,30 @@
   </div>
 </header>
 
-<!-- Service unit buttons (left) and the pipeline menu (right), filled by renderUnits() in header/header-js.html -->
-<div class="bar">
+<!--
+  Navigation in 4 levels (header/header-js.html):
+    1. BUSINESS | NO BUSINESS   (renderNav)      2. the maps of that choice   (renderNav)
+    3. service units            (renderUnits)    4. users of the chosen unit(s) (renderOwners)
+  + the Filters button and the two small project switches (Without P0, Real projects only) on the right.
+-->
+<nav class="nav lvl12">
+  <div class="biz" id="biz"></div>
+  <div class="maps" id="tabs"></div>
+  <div class="navr">
+    <div class="sws" id="sws"></div>
+    <div class="fwrap">
+      <div id="fbtn"></div>
+      <div class="fpanel" id="fpanel"></div>
+    </div>
+  </div>
+</nav>
+
+<!-- 3. service unit buttons (left) and the pipeline menu (right, map 01 only) -->
+<div class="bar lvl3">
+  <span class="lvlb">Service unit</span>
   <div class="units" id="units"></div>
   <div class="pipes" id="pipes"></div>
 </div>
 
-<!-- Owners of the chosen service unit(s), filled by renderOwners() in header/header-js.html (hidden when no unit is chosen) -->
-<div class="owners" id="owners" style="display:none"></div>
-
-<!-- Map tabs (renderUnits()) and the Filters button + panel (filters/filter-panel-js.html) -->
-<nav class="nav">
-  <div class="tabs" id="tabs"></div>
-  <div class="fwrap">
-    <div id="fbtn"></div>
-    <div class="fpanel" id="fpanel"></div>
-  </div>
-</nav>
+<!-- 4. users (owners) of the chosen service unit(s) - a hint until a unit is chosen -->
+<div class="owners lvl4" id="owners"></div>

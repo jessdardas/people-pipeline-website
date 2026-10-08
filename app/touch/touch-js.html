@@ -11,7 +11,7 @@
  * the "touchpoints" switch. This view has no export.)
  * Clicking an account opens the touchpoints pop-up: a to-do style checklist (site visit, Pub 1, Pub 2 …) and
  * what the account did (its activities).
- * Data: build() in core/data-js → a.activities (actInfo), a.tp (touchpoints()), pubNums().
+ * Data: build() in core/data-js → acts(a) (actInfo), a.tp (touchpoints()), pubNums().
  */
 
 /* ---------- weeks ---------- */
@@ -72,7 +72,7 @@ function actChip(x, show) {
 function actLegend(list) {
   var seen = {};
   list.forEach(function (a) {
-    a.activities.forEach(function (x) {
+    acts(a).forEach(function (x) {
       if (x.type) seen[x.type] = 1;
     });
   });
@@ -90,30 +90,187 @@ function actLegend(list) {
 
 /* ---------- the view ---------- */
 
+/* ---------- week filter + sorting ----------
+   Click a week title → a small menu with the activity types of that week (with how many accounts had each).
+   Ticking types keeps only the accounts that had at least one of them in that week; the rows and weeks stay as
+   they are (the filter only narrows the list). One week filter at a time; "clear" removes it. */
+
+/** The activities of account a in the week starting on Monday m (no tasks). */
+function actsInWeek(a, m) {
+  return acts(a).filter(function (x) {
+    return x.date != null && x.date >= m && x.date < m + 7;
+  });
+}
+
+/** Does account a pass the week filter (S.wf)? */
+function passWeek(a) {
+  var f = S.wf;
+  if (!f || !Object.keys(f.types).length) return true;
+  return actsInWeek(a, f.start).some(function (x) {
+    return f.types[x.type || 'Other'];
+  });
+}
+
+/** Opens / closes the week menu of the week starting on Monday m. */
+function weekMenu(m, e) {
+  if (e) e.stopPropagation();
+  S.wm = S.wm === m ? null : m;
+  renderList();
+}
+
+/** Tick / untick an activity type in the week menu (the menu stays open). */
+function weekType(m, t) {
+  if (!S.wf || S.wf.start !== m) S.wf = { start: m, types: {} };
+  if (S.wf.types[t]) delete S.wf.types[t];
+  else S.wf.types[t] = 1;
+  if (!Object.keys(S.wf.types).length) S.wf = null;
+  renderList();
+}
+
+function clearWeek() {
+  S.wf = null;
+  S.wm = null;
+  renderList();
+}
+
+/** The sort of the Stay in touch policy list (S.staySort): name (default), recent, most, unit. */
+var STAY_SORTS = [
+  { k: 'name', t: 'Account name' },
+  { k: 'recent', t: 'Most recent activity' },
+  { k: 'most', t: 'Most activities in these weeks' },
+  { k: 'unit', t: 'Service unit' }
+];
+
+function staySorted(list, first, end) {
+  var inWin = function (a) {
+    return acts(a).filter(function (x) {
+      return x.date != null && x.date >= first && x.date < end;
+    }).length;
+  };
+  var latest = function (a) {
+    return acts(a).length && acts(a)[0].date ? acts(a)[0].date : 0; // activities are newest first
+  };
+  var by = {
+    name: function (x, y) {
+      return x.name.localeCompare(y.name);
+    },
+    recent: function (x, y) {
+      return latest(y) - latest(x) || x.name.localeCompare(y.name);
+    },
+    most: function (x, y) {
+      return inWin(y) - inWin(x) || x.name.localeCompare(y.name);
+    },
+    unit: function (x, y) {
+      return unitLabel(x.su).localeCompare(unitLabel(y.su)) || x.name.localeCompare(y.name);
+    }
+  };
+  return list.slice().sort(by[S.staySort] || by.name);
+}
+
+/** The week menu (activity types of that week, for the accounts of the list). */
+function weekMenuHtml(m, list) {
+  var cnt = {};
+  list.forEach(function (a) {
+    var seen = {};
+    actsInWeek(a, m).forEach(function (x) {
+      var t = x.type || 'Other';
+      if (!seen[t]) cnt[t] = (cnt[t] || 0) + 1;
+      seen[t] = 1;
+    });
+  });
+  var types = Object.keys(cnt).sort(),
+    on = S.wf && S.wf.start === m ? S.wf.types : {};
+  return (
+    '<div class="wmenu" onclick="event.stopPropagation()"><div class="wm-h">Week ' +
+    isoWeek(m) +
+    ' · ' +
+    esc(fmtXl(m)) +
+    '</div>' +
+    (types.length
+      ? types
+          .map(function (t) {
+            var c = actColor(t);
+            return (
+              '<label><input type="checkbox" ' +
+              (on[t] ? 'checked' : '') +
+              ' onchange="weekType(' +
+              m +
+              ',\'' +
+              esc(t).replace(/'/g, '&#39;') +
+              '\')"><i style="background:' +
+              c.bg +
+              ';border-color:' +
+              c.fg +
+              '"></i>' +
+              esc(t) +
+              '<small>' +
+              cnt[t] +
+              '</small></label>'
+            );
+          })
+          .join('')
+      : '<p class="meta">No activities this week.</p>') +
+    '<div class="wm-f"><button class="lnk" onclick="clearWeek()">clear</button><button class="lnk" onclick="weekMenu(' +
+    m +
+    ')">close</button></div></div>'
+  );
+}
+
 /** Draws the Stay in touch policy table into box (the list block's #tw). list = the accounts of the listing. */
-function renderStay(box, list) {
+function renderStay(box, all) {
   var weeks = tpWeeks(),
+    first = weeks[0].start,
+    end = weeks[weeks.length - 1].start + 7,
     hasActs = S.sheets.some(function (s) {
       return s.role === 'activities';
     });
+  if (S.wf && (S.wf.start < first || S.wf.start >= end)) S.wf = null; // the week is no longer shown
+  var list = staySorted(all.filter(passWeek), first, end);
   var h =
-    '<div class="stay-info">' +
+    '<div class="stay-top"><div class="stay-info">' +
     (hasActs
-      ? 'Past weeks: the subject of each activity, coloured by type (no tasks) · hover for the details · this week highlighted · next weeks: to-dos (coming later)'
+      ? 'Past weeks: the subject of each activity, coloured by type (no tasks) · click a week to filter by activity type · next weeks: to-dos (coming later)'
       : 'No "activities" sheet in the Excel file yet: the weeks stay empty.') +
-    '</div>' +
-    actLegend(list) +
+    '</div><label class="stay-sort">Sort by <select onchange="S.staySort=this.value;renderList()">' +
+    STAY_SORTS.map(function (o) {
+      return '<option value="' + o.k + '"' + (S.staySort === o.k ? ' selected' : '') + '>' + esc(o.t) + '</option>';
+    }).join('') +
+    '</select></label></div>' +
+    actLegend(all);
+  if (S.wf)
+    h +=
+      '<div class="wfbar">Week ' +
+      isoWeek(S.wf.start) +
+      ': ' +
+      Object.keys(S.wf.types)
+        .map(function (t) {
+          return actChip({ type: t, date: null, subject: '' });
+        })
+        .join(' ') +
+      ' <span class="meta">' +
+      list.length +
+      ' of ' +
+      all.length +
+      ' accounts</span><button class="lnk" onclick="clearWeek()">clear</button></div>';
+  h +=
     '<div class="tpw"><table class="tb stay"><thead><tr>' +
     '<th class="acc">Account</th>' + // the only column besides the weeks (no #, no touchpoints)
     weeks
       .map(function (w) {
+        var f = S.wf && S.wf.start === w.start;
         return (
           '<th class="wk' +
           (w.off === 0 ? ' now' : w.off > 0 ? ' next' : '') +
+          (f ? ' wf' : '') +
           '" title="Week of ' +
           esc(fmtXl(w.start)) +
-          '">W' +
+          ' - click to filter by activity type" data-w="' +
+          w.start +
+          '" onclick="weekMenu(' +
+          w.start +
+          ', event)">W' +
           w.w +
+          (f ? ' ●' : '') +
           '<small>' +
           ddmm(w.start) +
           '</small></th>'
@@ -121,10 +278,8 @@ function renderStay(box, list) {
       })
       .join('') +
     '</tr></thead><tbody>';
-  var first = weeks[0].start,
-    end = weeks[weeks.length - 1].start + 7;
-  list.slice(0, S.g.limit).forEach(function (a, n) {
-    var inWin = a.activities.filter(function (x) {
+  list.slice(0, S.g.limit).forEach(function (a) {
+    var inWin = acts(a).filter(function (x) {
       return x.date != null && x.date >= first && x.date < end;
     });
     h +=
@@ -141,13 +296,14 @@ function renderStay(box, list) {
           return (
             '<td class="wk' +
             (w.off === 0 ? ' now' : w.off > 0 ? ' next' : '') +
+            (S.wf && S.wf.start === w.start ? ' wf' : '') +
             '">' +
             inWin
               .filter(function (x) {
                 return x.date >= w.start && x.date < w.start + 7;
               })
               .map(function (x) {
-                return actChip(x, 'subject'); // the subject; the colour still tells the type (legend above)
+                return actChip(x, 'subject'); // the subject; the colour tells the type (legend above)
               })
               .join('') +
             '</td>'
@@ -157,14 +313,41 @@ function renderStay(box, list) {
       '</tr>';
   });
   h += '</tbody></table></div>';
-  if (!list.length) h += '<p class="hint nomatch">No account matches. Try clearing the search or a column filter.</p>';
+  if (!list.length)
+    h += '<p class="hint nomatch">No account matches' + (S.wf ? ' this week filter (clear it above).' : '. Try clearing the search or a column filter.') + '</p>';
   if (list.length > S.g.limit)
     h +=
       '<button class="more" onclick="S.g.limit+=200;renderList()">Show more (' +
       (list.length - S.g.limit).toLocaleString('en-GB') +
       ' left)</button>';
   box.innerHTML = h;
+  placeWeekMenu(all);
 }
+
+/** Shows the open week menu as a floating box under its week title (outside the table, so it is never cut off). */
+function placeWeekMenu(all) {
+  var old = document.getElementById('wmenuBox');
+  if (old) old.remove();
+  if (S.wm == null) return;
+  var th = document.querySelector('table.stay th[data-w="' + S.wm + '"]');
+  if (!th) return;
+  var r = th.getBoundingClientRect(),
+    d = document.createElement('div');
+  d.id = 'wmenuBox';
+  d.innerHTML = weekMenuHtml(S.wm, all);
+  d.style.cssText = 'position:absolute;z-index:80;top:' + (r.bottom + scrollY + 4) + 'px;left:' + Math.max(8, r.left + scrollX + r.width / 2 - 115) + 'px';
+  document.body.appendChild(d);
+}
+
+// a click anywhere else closes the week menu (on "click", not "mousedown": closing it can shorten the page, and the
+// button under the mouse must still get its click)
+document.addEventListener('click', function (e) {
+  if (S.wm != null && !e.target.closest('.wmenu') && !e.target.closest('th.wk')) {
+    S.wm = null;
+    var m = document.getElementById('wmenuBox');
+    if (m) m.remove();
+  }
+});
 
 /* ---------- the touchpoints pop-up (to-do style) ---------- */
 
@@ -216,11 +399,11 @@ function openTouch(i) {
   // 2. what the account did (newest first, colour-coded, no tasks)
   h +=
     '<h4>What they did <span>(' +
-    a.activities.length +
+    acts(a).length +
     ')</span></h4>' +
-    (a.activities.length
+    (acts(a).length
       ? '<ul class="acts">' +
-        a.activities
+        acts(a)
           .slice(0, 40)
           .map(function (x) {
             return (
@@ -235,7 +418,7 @@ function openTouch(i) {
           })
           .join('') +
         '</ul>' +
-        (a.activities.length > 40 ? '<p class="meta">… and ' + (a.activities.length - 40) + ' older</p>' : '')
+        (acts(a).length > 40 ? '<p class="meta">… and ' + (acts(a).length - 40) + ' older</p>' : '')
       : '<p class="meta">No activities yet.</p>');
   // 3. next: the to-dos (later)
   h +=

@@ -174,6 +174,9 @@ function build(d) {
       var ph = phaseKey(cellBy(p.s, p.j, 'Phase_Group')),
         nm = String(projName(p)),
         o = { ph: PHASES.indexOf(ph) >= 0 ? ph : 'nophase', open: isOpenProject(p), date: projDate(p) };
+      o.name = nm; // project name
+      o.id = String(cellBy(p.s, p.j, 'opportunityid') || nm || p.s + ':' + p.j); // the project key (opportunityid)
+      o.p = p; // the project row
       PROJECT_EXCLUDE.forEach(function (e) {
         o[e.k] = e.name
           ? e.name.test(nm) || e.name.test(a.name)
@@ -186,6 +189,14 @@ function build(d) {
     a.open = a.pj.filter(function (o) {
       return o.open;
     });
+    // internal links (see ACCOUNT_EXCLUDE_KINDS): which excluded kinds the account touches + an internal account owner
+    a.intKinds = {};
+    a.pj.forEach(function (o) {
+      ACCOUNT_EXCLUDE_KINDS.forEach(function (k) {
+        if (o[k]) a.intKinds[k] = 1;
+      });
+    });
+    a.intOwner = INTERNAL_USERS.test(a.owner);
     // "last project" empty in the file: take the latest date of the account's own projects
     a.lpFromProj = false;
     if (a.lpDate == null) {
@@ -260,6 +271,22 @@ function build(d) {
       .sort()
   );
   buildSocialFilters();
+  actColorMap(); // a fixed colour for every activity type in the file
+  projectIndex(); // every project with all its accounts (Touchpoints)
+}
+
+/** S.prj: every project once (key = opportunityid) → { id, name, ph, open, o (flags of the first row), accs: [account
+ *  indexes] } - a project can be linked to several accounts (one row per account in the projects sheet). */
+function projectIndex() {
+  var m = {};
+  S.acc.forEach(function (a) {
+    a.pj.forEach(function (o) {
+      var x = m[o.id] || (m[o.id] = { id: o.id, name: o.name, ph: o.ph, open: o.open, o: o, accs: [] });
+      if (x.accs.indexOf(a.i) < 0) x.accs.push(a.i);
+      if (o.open) x.open = true;
+    });
+  });
+  S.prj = m;
 }
 
 /** Is the project marked in the PROJECT_EXCLUDE column of kind e? */
@@ -305,6 +332,7 @@ function actInfo(e) {
     d = num(g('date'));
   return {
     date: d != null && d > NEVER ? d : null,
+    owner: String(g('owner') == null ? '' : g('owner')).trim(),
     type: String(g('type') == null ? '' : g('type')).trim(),
     subject: String(g('subject') == null ? '' : g('subject')).trim(),
     e: e
@@ -397,13 +425,37 @@ function pubText(list) {
     .join(' · ');
 }
 
-/** The colour of an activity type (ACT_COLORS, else a fixed colour per type from ACT_OTHER_COLORS). */
+/** The colour of an activity type: ACT_COLORS for the known types; any other type gets its own colour from
+ *  ACT_OTHER_COLORS (given out once per load in A→Z order of the types, see actColorMap()). */
 function actColor(type) {
   var t = String(type || '');
   for (var i = 0; i < ACT_COLORS.length; i++) if (ACT_COLORS[i].re.test(t)) return ACT_COLORS[i];
-  var h = 0;
-  for (var j = 0; j < t.length; j++) h = (h * 31 + t.charCodeAt(j)) % 997;
-  return ACT_OTHER_COLORS[h % ACT_OTHER_COLORS.length];
+  var m = S.actColorMap || {};
+  return m[t] || ACT_OTHER_COLORS[ACT_OTHER_COLORS.length - 1];
+}
+
+/** Gives every activity type that is not in ACT_COLORS its own colour (A→Z), once per load. */
+function actColorMap() {
+  var types = {};
+  S.acc.forEach(function (a) {
+    a.activities.forEach(function (x) {
+      if (x.type) types[x.type] = 1;
+    });
+  });
+  var m = {},
+    n = 0;
+  Object.keys(types)
+    .sort()
+    .forEach(function (t) {
+      if (
+        ACT_COLORS.some(function (c) {
+          return c.re.test(t);
+        })
+      )
+        return;
+      m[t] = ACT_OTHER_COLORS[n++ % ACT_OTHER_COLORS.length];
+    });
+  S.actColorMap = m;
 }
 
 /** The project's owner (OWNER_COLS in core/config-js), '' when the projects sheet has no owner column. */
@@ -449,6 +501,32 @@ function latestDate(list) {
     if (o.date != null && (m == null || o.date > m)) m = o.date;
   });
   return m;
+}
+
+/** The account's activities as shown (newest first, no tasks): with "Real projects only" on, without the activities
+ *  of internal users (INTERNAL_USERS as the activity owner). Use this everywhere activities are shown. */
+function acts(a) {
+  var hide = S.clean && S.px.own;
+  if (a._actsHide !== hide) {
+    a._actsHide = hide;
+    a._acts = hide
+      ? a.activities.filter(function (x) {
+          return !INTERNAL_USERS.test(x.owner);
+        })
+      : a.activities;
+  }
+  return a._acts;
+}
+
+/** Is the whole account removed by "Real projects only" (everywhere: maps, lists, search, users, exports, details)?
+ *  Yes when the switch is on and the account touches a ticked ACCOUNT_EXCLUDE_KINDS kind (a project owned by an
+ *  internal user) or its owner is an internal user (INTERNAL_USERS) - while the 'own' kind is ticked. */
+function hiddenAcc(a) {
+  if (!S.clean) return false;
+  if (S.px.own && a.intOwner) return true;
+  return ACCOUNT_EXCLUDE_KINDS.some(function (k) {
+    return S.px[k] && a.intKinds[k];
+  });
 }
 
 /** Is this project left out by the "Without P0" or the "Real projects only" switch (maps 01 + 02)? */

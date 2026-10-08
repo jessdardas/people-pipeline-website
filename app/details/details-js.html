@@ -262,7 +262,7 @@ function setActType(t) {
 }
 
 function actsHtml(a) {
-  var s = S.sheets[a.activities[0].e.s],
+  var s = S.sheets[acts(a)[0].e.s],
     own = [actCol(s, 'date'), actCol(s, 'type'), actCol(s, 'subject')],
     // the other columns that are filled in for at least one activity (no ids)
     more = s.cols
@@ -273,18 +273,18 @@ function actsHtml(a) {
         return (
           own.indexOf(i) < 0 &&
           !/id$/.test(s.hk[i]) &&
-          a.activities.some(function (x) {
+          acts(a).some(function (x) {
             return cv(x.e.s, i, x.e.j) != null;
           })
         );
       });
   // types with their counts → filter buttons
   var cnt = {};
-  a.activities.forEach(function (x) {
+  acts(a).forEach(function (x) {
     var t = x.type || 'Other';
     cnt[t] = (cnt[t] || 0) + 1;
   });
-  var list = a.activities
+  var list = acts(a)
     .filter(function (x) {
       return !ACT_VIEW.type || (x.type || 'Other') === ACT_VIEW.type;
     })
@@ -293,10 +293,10 @@ function actsHtml(a) {
       return ((x.date || 0) - (y.date || 0)) * (ACT_VIEW.asc ? 1 : -1);
     });
   var h =
-    '<div class="acth"><div class="actf"><button class="' +
+    '<div class="acth"><div class="actf"><button class="clp" onclick="toggleActs(this)" title="Hide / show the activities">▾</button><button class="' +
     (ACT_VIEW.type ? '' : 'on') +
     '" onclick="ACT_VIEW.type=\'\';renderActs()">All ' +
-    a.activities.length +
+    acts(a).length +
     '</button>' +
     Object.keys(cnt)
       .sort()
@@ -352,6 +352,32 @@ function actsHtml(a) {
       '</div></li>';
   });
   return h + '</ol>';
+}
+
+/* ---------- collapsible tables in the details: a small arrow in each table header ----------
+   Open by default. The arrow hides the rows (the header row stays, so it can be opened again). */
+function addCollapse(root) {
+  root.querySelectorAll('table.tb').forEach(function (t) {
+    var th = t.tHead && t.tHead.rows[0] && t.tHead.rows[0].cells[0];
+    if (!th || th.querySelector('.clp')) return;
+    th.insertAdjacentHTML('afterbegin', '<button class="clp" onclick="toggleTbl(this,event)" title="Hide / show the rows">▾</button>');
+  });
+  // the label / value blocks (Overview, Touchpoints, More details): the arrow sits in their title
+  root.querySelectorAll('h3 + .kv').forEach(function (kv) {
+    var h3 = kv.previousElementSibling;
+    if (h3.querySelector('.clp')) return;
+    h3.insertAdjacentHTML('afterbegin', '<button class="clp" onclick="this.closest(\'h3\').classList.toggle(\'collapsed\')" title="Hide / show">▾</button>');
+  });
+}
+
+function toggleTbl(btn, e) {
+  e.stopPropagation(); // not a sort click
+  var t = btn.closest('table');
+  t.classList.toggle('collapsed');
+}
+
+function toggleActs(btn) {
+  document.getElementById('actBox').classList.toggle('collapsed');
 }
 
 function locate(a) {
@@ -421,7 +447,12 @@ function openDetail(i) {
       .join('') +
     '</div>';
   // projects
-  var pr = a.projects.slice().sort(function (x, y) {
+  // "Real projects only": left-out projects (I.N., intercompany, …) are not shown (realProject in touch/touchpoints-js)
+  var pr = a.projects.filter(function (p) {
+    var o = a.pj[a.projects.indexOf(p)];
+    return !o || realProject(o);
+  });
+  pr = pr.sort(function (x, y) {
     return String(cellBy(y.s, y.j, 'Phase_Group')).localeCompare(String(cellBy(x.s, x.j, 'Phase_Group')));
   });
   // contact persons (Query 5 in the Excel file): only their names - only shown here, not in the big table
@@ -440,6 +471,8 @@ function openDetail(i) {
         '</ul>'
       : '<p class="meta">None yet.</p>');
   h += '<h3>Projects (' + pr.length + ')</h3>' + groupTables(pr, a);
+  // Account → Projects → Phase → Touchpoints (the same touchpoints as the Touchpoints view, touch/touchpoints-js)
+  h += '<h3>Project touchpoints</h3>' + tpAccountHtml(a);
   h += '<h3>Social media (' + a.social.length + ')</h3>' + groupTables(a.social, a);
   // touchpoints (read-only: last site visit, Pub 1, Pub 2 …) + the account's activities (no tasks), see touch/touch-js
   h +=
@@ -455,7 +488,7 @@ function openDetail(i) {
       })
       .join('') +
     '</div>';
-  if (a.activities.length) h += '<h3>Activities (' + a.activities.length + ')</h3>' + actsBlock(a);
+  if (acts(a).length) h += '<h3>Activities (' + acts(a).length + ')</h3>' + actsBlock(a);
   if (a.lists.length) h += '<h3>Other linked rows (' + a.lists.length + ')</h3>' + groupTables(a.lists, a);
   // any other column in the file (new query columns show up here automatically)
   var more = [];
@@ -475,6 +508,7 @@ function openDetail(i) {
   });
   if (more.length) h += '<h3>More details</h3><div class="kv">' + more.join('') + '</div>';
   document.getElementById('aBody').innerHTML = h;
+  addCollapse(document.getElementById('aBody'));
   document.getElementById('aBody').scrollTop = 0;
   openDrawer();
 }

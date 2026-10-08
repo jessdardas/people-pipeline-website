@@ -1,0 +1,199 @@
+<style>
+/* Touchpoints (touch/touchpoints-js.html): one box = shape by type + group colour (--gc), kept subtle */
+.tprow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.tpc {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 3px 6px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--gc);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 11.5px;
+  color: var(--text-soft);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+.tpc:hover {
+  background: var(--soft);
+  color: var(--text);
+}
+.tpc.ro {
+  cursor: default;
+}
+.tpc.on {
+  color: var(--text);
+  font-weight: 600;
+}
+/* the shape: Added value = round ○, Deliverable = square □; ticked = filled with the group colour + ✓ */
+.shape {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  border: 1.6px solid var(--gc, var(--text-soft));
+  background: var(--surface);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+}
+.tpc.av .shape,
+.shape.av {
+  border-radius: 50%;
+}
+.tpc.del .shape,
+.shape.del {
+  border-radius: 2px;
+}
+.tpc.on .shape {
+  background: var(--gc);
+}
+.tpc.on .shape::after {
+  content: '✓';
+}
+/* legend */
+.tpleg {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin: 0 0 10px;
+  font-size: 11.5px;
+  color: var(--text-soft);
+}
+.tplg {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.tplg i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--gc);
+}
+.tpsh {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.tpsh .shape {
+  --gc: var(--text-soft);
+}
+.tpinfo {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin: 0 0 8px;
+}
+.phb {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--soft);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-soft);
+}
+/* the Touchpoints view */
+.tb.tptab2 th.pj,
+.tb.tptab2 td.pj {
+  width: 22%;
+}
+.tb.tptab2 th.pa,
+.tb.tptab2 td.pa {
+  width: 26%;
+}
+.tb.tptab2 td {
+  vertical-align: top;
+}
+.tb.tptab2 tbody tr {
+  cursor: pointer;
+}
+.pacc {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12.5px;
+}
+.pacc .lnk {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 12.5px;
+}
+.pacc .lnk:hover {
+  text-decoration: underline;
+}
+/* the project pop-up */
+.pacc2 {
+  margin: 10px 0 12px;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+.tpph {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--soft);
+  border-radius: 10px;
+}
+.tpph.cur {
+  border: 1.5px solid var(--accent);
+  background: #f7f9fd;
+}
+.tpph h4 {
+  margin: 0 0 8px !important;
+  color: var(--text) !important;
+  font-size: 14px !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+.tpph h4 span {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-faint);
+  margin-left: 6px;
+}
+.tpg {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 6px 0;
+}
+.tpg-n {
+  width: 104px;
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gc);
+  padding-top: 4px;
+}
+/* account details */
+.tb.tpacc td {
+  vertical-align: top;
+}
+.tb.tpacc th.pj,
+.tb.tpacc td.pj {
+  width: 30%;
+}
+.tb.tpacc th.ph,
+.tb.tpacc td.ph {
+  width: 70px;
+}
+.tb.tpacc .phb {
+  margin-left: 0;
+}
+</style>

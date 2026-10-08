@@ -1,14 +1,19 @@
 <script>
 /* Draws the matrix for the current view */
-/** Two small switches above maps 01 + 02 (kept quiet on purpose):
- *  - "Without P0" (ON by default): P0 projects are left out (P0_PHASE in core/config-js)
- *  - "Real projects only" (ON by default) + ▾ menu: which kinds of projects are left out (PROJECT_EXCLUDE) */
+/** The two small switches in the navigation row (#sws), kept quiet on purpose:
+ *  - "Without P0" (ON by default, maps 01 + 02 only): P0 projects are left out (P0_PHASE in core/config-js)
+ *  - "Real projects only" (ON by default, the whole dashboard) + ▾ menu: which kinds of projects are left out
+ *    (PROJECT_EXCLUDE); accounts linked to internal users are removed everywhere (see hiddenAcc() in core/data-js) */
+function renderSwitches() {
+  var el = document.getElementById('sws');
+  if (el) el.innerHTML = cleanHtml();
+}
+
 function cleanHtml() {
-  if (S.view > 2) return '';
   // in the ▾ menu: how many accounts of this map have such projects
   var n = {};
   S.acc.forEach(function (a) {
-    if (a.cls !== (S.view === 1 ? 'current pipeline' : 'past client') || !pass(a)) return;
+    if (!MAPS[S.view].filter(a) || !pass(a)) return;
     var list = S.view === 1 ? a.open : a.pj;
     PROJECT_EXCLUDE.forEach(function (e) {
       if (list.some(function (o) {
@@ -19,9 +24,11 @@ function cleanHtml() {
   });
   var h =
     '<span class="rps">' +
-    '<span class="rp"><label class="sw" title="Leave out P0 projects"><input type="checkbox" ' +
-    (S.noP0 ? 'checked' : '') +
-    ' onchange="setNoP0(this.checked)"><i></i>Without P0</label></span>' +
+    (S.view <= 2
+      ? '<span class="rp"><label class="sw" title="Leave out P0 projects (maps 01 and 02)"><input type="checkbox" ' +
+        (S.noP0 ? 'checked' : '') +
+        ' onchange="setNoP0(this.checked)"><i></i>Without P0</label></span>'
+      : '') +
     '<span class="rp"><label class="sw" title="Leave out ' +
     esc(
       PROJECT_EXCLUDE.filter(function (e) {
@@ -34,7 +41,7 @@ function cleanHtml() {
     ) +
     ' projects"><input type="checkbox" ' +
     (S.clean ? 'checked' : '') +
-    ' onchange="setClean(this.checked)"><i></i>Real projects only</label><button class="rp-b" onclick="S.xm=!S.xm;render()" title="Choose what is left out">▾</button>';
+    ' onchange="setClean(this.checked)"><i></i>Real projects only</label><button class="rp-b" onclick="S.xm=!S.xm;renderSwitches()" title="Choose what is left out">▾</button>';
   if (S.xm)
     h +=
       '<div class="rp-m"><div class="rp-h">Leave out these projects<br><small>unticked = shown (in "other" on map 01)</small></div>' +
@@ -52,7 +59,7 @@ function cleanHtml() {
           '</small></label>'
         );
       }).join('') +
-      '<div class="rp-f"><button class="lnk" onclick="S.px=defaultPx();changed();S.xm=true;render()">standard</button></div></div>';
+      '<div class="rp-f"><button class="lnk" onclick="S.px=defaultPx();changed();S.xm=true;renderSwitches()">standard</button></div></div>';
   return h + '</span></span>';
 }
 
@@ -73,7 +80,7 @@ function setKind(i) {
   else S.px[k] = 1;
   changed();
   S.xm = true;
-  render();
+  renderSwitches();
 }
 
 function scopeText() {
@@ -175,7 +182,6 @@ function render() {
     (ft ? ' · ' + esc(ft) : '') +
     '</div></div>' +
     '<div class="hright">' +
-    cleanHtml() +
     '<label class="multi" title="Tick, then click several boxes (or row / column titles) to list their accounts together"><input type="checkbox" ' +
     (S.multiCell ? 'checked' : '') +
     ' onchange="S.multiCell=this.checked">select several boxes</label></div>' +

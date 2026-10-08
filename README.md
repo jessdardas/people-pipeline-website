@@ -8,7 +8,7 @@ It is a **separate project**: nothing here touches the Apps Script project, Goog
 ```
 data\people pipeline.xlsx  ──►  the browser reads it (SheetJS)  ──►  server\Pipeline.js links the sheets  ──►  app\ draws the page
         ▲                                                             (same file as Apps Script)             (same folder as Apps Script)
-        └── tools\copy-excel.ps1, every hour (Task Scheduler)          the page reads it when it opens and when you click ↻ (never by itself)
+        └── tools\copy-excel.ps1, every hour (Task Scheduler)          the page reads it when it opens (never by itself)
 ```
 
 | Folder / file | What it is |
@@ -43,9 +43,9 @@ Without steps 3–4 the site still works; only saving the New DB date doesn't (i
 2. **Task Scheduler** → *Create Task* → Triggers: *Daily*, repeat every **1 hour** → Actions: *Start a program*
    `powershell.exe` with arguments `-ExecutionPolicy Bypass -File "C:\inetpub\people-pipeline\tools\copy-excel.ps1"`.
 
-**Last updated at** (top of the page) is the last date written in `data\refresh-log.txt` (`C:\inetpub\people-pipeline\data\refresh-log.txt`). Without that file it shows when the Excel file last changed.
+**Last updated at** (top of the page) is the newest **successful** refresh in `data\refresh-log.txt` (`C:\inetpub\people-pipeline\data\refresh-log.txt`): only lines with a date **and the word OK** count (e.g. `2026-10-08 09:00:12 OK`); a line with **ERROR** is ignored completely, and error times are never shown. Without an OK line it shows when the Excel file last changed. (`LOG_OK` / `LOG_ERROR` in `site\source.js`.)
 
-**The page never refreshes by itself.** The data is read when the page opens and when you click **↻** next to *Last updated at* (it then says *No changes* or *Updated*).
+**The page never refreshes by itself, and there is no refresh button**: the data is read when the page opens.
 
 **Fast opening:** the browser keeps the data it read, together with the Excel file's date and size (IndexedDB, `site\source.js`). When you open the page and the file on the server has not changed, the kept copy is used: no download, no decoding (about 0.3 s instead of 1–3 s). When the file changed, it is read again and kept. Other speed-ups: the Excel reader (`site\vendor\xlsx.full.min.js`) is only loaded when the file must be decoded, decoding skips styles and formats, and the Google font no longer holds up the page (it loads in the background; without internet the normal system font is used).
 If you change how the file is read (`server\Pipeline.js`), raise `cacheVersion` in `site\source.js` so every browser reads the file again once.
@@ -54,10 +54,19 @@ If you change how the file is read (`server\Pipeline.js`), raise `cacheVersion` 
 
 These are only in the website's `app\` (not in the Apps Script project).
 
-### Maps 01 and 02: two small switches (above the matrix, kept quiet on purpose)
+### Navigation in 4 levels (`app\header\`)
 
-- **Without P0** (on by default): P0 projects are left out; on map 01 the P0 column disappears. An account whose projects are all P0 leaves the map, so the totals go down. (`P0_PHASE` in `app\core\config-js.html`)
-- **Real projects only** (on by default) + the small **▾** menu, where each kind of project can be ticked (left out) or unticked (shown):
+1. **BUSINESS | NO BUSINESS** – the big switch at the top. *Business* = maps 01 *Current pipeline* and 02 *Past pipeline*; *No business* = map 03 *No business*.
+2. **The map** – a card per map of that choice, with its number of accounts; the selected card has a strong border. *All accounts* is the small link next to the cards.
+3. **Service unit** – the row of units (and the pipeline menu on map 01).
+4. **User** – the users (owners) of the chosen unit(s); until a unit is chosen, the row says so.
+
+On the right of levels 1–2: the two small switches and **Filters**.
+
+### Two small switches (kept quiet on purpose)
+
+- **Without P0** (on by default, maps 01 and 02): P0 projects are left out; on map 01 the P0 column disappears. An account whose projects are all P0 leaves the map, so the totals go down. (`P0_PHASE` in `app\core\config-js.html`)
+- **Real projects only** (on by default, **the whole dashboard**) + the small **▾** menu, where each kind of project can be ticked (left out) or unticked (shown):
 
   | Kind | How it is recognised | Standard |
   |---|---|---|
@@ -67,16 +76,25 @@ These are only in the website's `app\` (not in the Apps Script project).
   | Excluded from pipeline | *pslab_excludingfrompipeline* of the projects sheet is TRUE | left out |
   | Internal owner | the project owner (*OwnerName*) has a word starting with ROLAND, CYBEL, ROGER, SAM, DANY DAABOUL or PSLAB (so *Cybelle*, *Sammy* and the *pslab-…* teams count too) | left out |
 
-  Standard: all kinds ticked (left out). Unticked (shown) I.N. / intercompany / excluded / internal-owner projects go in the **other (i.n. ...)** column of map 01; shown No P2 projects stay in their phase column. An account whose projects are all left out leaves the map. Switching *Real projects only* off shows every kind. *standard* in the ▾ menu goes back to the table above. The subtitle under the map title only mentions these switches when they differ from the standard. Settings: `PROJECT_EXCLUDE`, `INTERNAL_KINDS`, `OWNER_COLS` in `app\core\config-js.html`.
+  **Internal users are removed everywhere, at the data level** (while *Internal owner* is ticked): a whole **account** disappears from maps, lists, totals, search, the Users row, the Filters panel, exports and details when it has **any project owned by an internal user**, or when **its own owner is an internal person** (Roland, Cybel(le), Roger, Sam(my), Dany Daaboul). The service-unit team owners (*pslab-london*, *pslab-beirut* …) are *not* internal people – they own most accounts in the file (≈ 17,500), so those accounts stay. Activities owned by internal people are not shown either. With the current file: 451 accounts are removed (154 owned by internal people, 362 with an internal-owner project). Settings: `ACCOUNT_EXCLUDE_KINDS`, `INTERNAL_USERS` in `app\core\config-js.html` (add `'inn'` / `'ico'` there to remove the accounts of I.N. / intercompany projects too).
 
-### Under the maps: Account listing | Stay in touch policy (`app\touch\`)
+  The other kinds only take the **projects** out: unticked (shown) I.N. / intercompany / excluded / internal-owner projects go in the **other (i.n. ...)** column of map 01; shown No P2 projects stay in their phase column; an account whose projects are all left out leaves the map. *standard* in the ▾ menu goes back to the table above. Settings: `PROJECT_EXCLUDE`, `INTERNAL_KINDS`, `OWNER_COLS`.
 
-The list of accounts under every map (after clicking a box, a row or a column title) has two views, switched at the top left of the list:
+### Under the maps: Account listing | Stay in touch policy | Touchpoints (`app\touch\`)
+
+The list of accounts under every map (after clicking a box, a row or a column title) has two views – three on map 01 – switched at the top left of the list:
 
 - **Account listing** – the table as before.
 - **Stay in touch policy** – the same accounts, one row each. Columns: the **account name and the weeks only** (no export here, no touchpoint columns: the touchpoints are in the pop-up and in the account details):
   - one column per week: **5 weeks before** this week, **this week** (highlighted), **10 weeks after**. Past weeks show the **subject** of each of the account's activities from the **activities** sheet, **coloured by its type** (legend above the table; hover for date · type · subject). **Tasks are never shown.** The next weeks are empty for now: later they will show the to-dos.
+  - **Every activity type has its own colour**, the same everywhere (Site visit purple, Meeting – Out blue, Meeting – In teal, Intro indigo, Video call orange, Phone call green, Email yellow, Workshop pink, other meetings slate; any other type in the file gets its own colour from a fixed list).
+  - **Week filter**: click a week title → tick activity types (Site visit, Meeting In, Meeting Out, Video call … – the types of that week, with how many accounts had each). Only the accounts that had a ticked type in that week stay; the weeks and activities stay as they are. A bar above the table shows the filter (*clear* removes it).
+  - **Sort by**: *Account name* (standard), *Most recent activity*, *Most activities in these weeks*, *Service unit*.
   - **Click an account** → the touchpoints pop-up, like a to-do list: ☑ / ☐ Site visit (last date), Pub 1, Pub 2, Pub 3 … each its own checkpoint (with the details), then *What they did* (the activities, newest first) and *Next* (the to-dos, later). *Open account details* goes to the details panel.
+
+- **Touchpoints** (map 01 Current pipeline only) – one row per **unique open project** of the listed accounts (with *Real projects only* on: real projects only): **Project** (+ its phase) | **Accounts** (each *Account | Category*, one under the other) | **Touchpoints** of the project's **current phase**, side by side. Click a project → its pop-up: the **current phase first**, then the previous phases, then the upcoming ones, each with its touchpoints by group.
+
+**Touchpoints – one system everywhere** (Touchpoints view, project pop-up, account details; `app\touch\touchpoints-js.html`): the reference (names, groups, types, phases) is `TOUCHPOINTS` / `TP_GROUPS` in `app\core\config-js.html` – 8 groups (Reach out, Design, Technical, Commercial, Logistics, Site, Project closure, Brand), each with its own subtle colour (the box's left border). The **shape** shows the type: **round ○ = Added value**, **square □ = Deliverable**. Only the touchpoints of the project's phase are shown (*any* = every phase). **For now every box starts unticked and can be ticked / unticked on screen only: nothing is saved, a reload clears it.** A tick belongs to one project + phase + touchpoint. Later the state will come from the database: set `TP_SOURCE` (a function project, phase, touchpoint → ticked) and `TP_READONLY` in the config; the boxes then can no longer be changed by hand.
 
 Where it comes from: the **activities** sheet is found by its name; its date, type and subject columns by name (`ACT_COLS`). Hidden types: `ACT_HIDE` (tasks). Colours: `ACT_COLORS` / `ACT_OTHER_COLORS`. Site visit: an account column with *site visit* in its name, or an activity whose type or subject says *site visit* (the latest date is shown). All in `app\core\config-js.html`. The account details panel shows the same touchpoints and activities.
 
@@ -93,7 +111,7 @@ The tools above the list: on the **left** the two views, the search and **Column
 - **Search** (top): picking an account opens its details; the map stays as it is (*Show on map* in the details jumps to it).
 - **Last project**: when the file has no last-project date, the latest date of the account's own projects is used: the project's *DateIn*, else its *actualclosedate* (map 02 and the details, which then say *from its projects*). `PROJECT_DATE_COLS` in `app\core\config-js.html`.
 - **New DB**: with New DB on, a small date box next to *validated on or after* changes the date for your view only; nothing is saved (*reset* goes back to the admin date).
-- **Account details** (a wider panel): *Website* in the overview (a link; the account column *websiteurl* / *website*); *Contact persons* as names only; the project table shows *Project name*, *Phase* and *Status* (**+ columns** adds others, remembered in your browser); *Activities* as a tidy list, newest first: the date on the left, the type (colour) and the subject, a small line with the other filled-in columns (owner, regarding, status, location …) and long texts (description) below in 2 lines (click to see all). On top: buttons to show one type only, and *Newest first / Oldest first*. Click a column title in the other tables to sort, click again to reverse.
+- **Account details** (a wider panel): every table (and the activities list and the label / value blocks) has a small **▾ arrow** in its header: click it to hide the rows (the header stays), click again to show them – all open by default. **Project touchpoints**: *Account → Projects → Phase → Touchpoints* – each real project of the account with its phase and that phase's touchpoints (the same boxes as above; click a project for all its phases). With *Real projects only* on, left-out projects (I.N. …) are not listed in the details either. *Website* in the overview (a link; the account column *websiteurl* / *website*); *Contact persons* as names only; the project table shows *Project name*, *Phase* and *Status* (**+ columns** adds others, remembered in your browser); *Activities* as a tidy list, newest first: the date on the left, the type (colour) and the subject, a small line with the other filled-in columns (owner, regarding, status, location …) and long texts (description) below in 2 lines (click to see all). On top: buttons to show one type only, and *Newest first / Oldest first*. Click a column title in the other tables to sort, click again to reverse.
 
 ## Updating the website after changing the app
 
