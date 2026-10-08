@@ -1,12 +1,10 @@
 <script>
 /*
  * TOUCHPOINTS - website only. ONE implementation, used in:
- *   1. the "Touchpoints" view of the list under map 01 Current pipeline (renderTpTab), in two looks to compare:
- *        Grid    - Project (+ phase) | Accounts | one column per group with ALL its touchpoints; the ones of the
- *                  project's current phase are lit (group tint), the others faded
- *        Compact - Project | Phase | Accounts
- *      Click a project (both looks): a table opens right under it - its accounts as rows, the touchpoints of a phase
- *      as columns (standard: the current phase; the phase buttons show the others), a tick box per account.
+ *   1. the "Touchpoints" view of the list under map 01 Current pipeline (renderTpTab): # | Project | Phase | Accounts,
+ *      one row per unique open project, with the number of projects in the list title.
+ *      Click a project: a table opens right under it - its accounts as rows, the touchpoints of a phase as columns
+ *      (standard: the current phase; the phase buttons show the others), a tick box per account.
  *   2. the project pop-up (openProject, from the account details): the same table for every phase,
  *      the current phase first, then the previous ones, then the upcoming ones
  *   3. the account details (tpAccountHtml): Account → Projects → Phase → that account's tick boxes
@@ -78,13 +76,6 @@ function tpChecked(pk, a, tk) {
   return !!S.tpTemp[tpKey(pk, a, tk)];
 }
 
-/** How many of the project's accounts have touchpoint tk ticked. */
-function tpCount(x, tk) {
-  return prjAccounts(x).filter(function (a) {
-    return tpChecked(x.id, a, tk);
-  }).length;
-}
-
 /** A click on a tick box: tick / untick on screen only (nothing is saved). Read-only once TP_READONLY is set. */
 function tpClick(el, e) {
   if (e) e.stopPropagation();
@@ -96,7 +87,6 @@ function tpClick(el, e) {
   document.querySelectorAll('[data-tp]').forEach(function (b) {
     if (b.getAttribute('data-tp') === key) b.classList.toggle('on', !!S.tpTemp[key]);
   });
-  if (S.listView === 'tp' && document.querySelector('table.tpgrid, table.tpcomp')) renderList(); // grid counts
 }
 
 /* ---------- small pieces ---------- */
@@ -240,7 +230,7 @@ function tpSetPh(id, ph) {
   renderList();
 }
 
-/* ---------- 1. the Touchpoints view (Current pipeline): Grid | Compact ---------- */
+/* ---------- 1. the Touchpoints view (Current pipeline): # | Project | Phase | Accounts ---------- */
 
 /** The unique open real projects of the listed accounts, A→Z. */
 function tpProjects(list) {
@@ -265,11 +255,6 @@ function tpToggle(id) {
   renderList();
 }
 
-function setTpMode(m) {
-  S.tpMode = m;
-  renderList();
-}
-
 /** The accounts of a project, one under the other: "Account | Category". */
 function tpAccList(x) {
   return (
@@ -283,67 +268,29 @@ function tpAccList(x) {
   );
 }
 
-/** Grid: in each group column ALL its touchpoints - lit (tint) when they apply to the project's phase, faded when not;
- *  "n/m" = how many of the project's accounts have it ticked. */
-function tpGridCell(x, g) {
-  var n = prjAccounts(x).length;
-  return TOUCHPOINTS.filter(function (t) {
-    return t.g === g.k;
-  })
-    .map(function (t) {
-      var on = tpApplies(t, x.ph),
-        c = on ? tpCount(x, t.k) : 0;
-      return (
-        '<div class="tpi ' +
-        t.type +
-        (on ? ' on' : '') +
-        '" style="--gc:' +
-        g.c +
-        ';--gl:' +
-        g.l +
-        '" title="' +
-        esc(t.t + ' · ' + (t.type === 'av' ? 'Added value' : 'Deliverable') + ' · ' + (t.ph === 'any' ? 'any phase' : t.ph.join(', '))) +
-        '"><span class="tpk ' +
-        t.type +
-        (on && c && c === n ? ' on' : '') +
-        '" style="--gc:' +
-        g.c +
-        '"></span>' +
-        esc(t.t) +
-        (on && c ? '<small>' + c + '/' + n + '</small>' : '') +
-        '</div>'
-      );
-    })
-    .join('');
-}
-
 function renderTpTab(box, list) {
-  var prj = tpProjects(list),
-    grid = S.tpMode !== 'compact',
-    ncol = grid ? 2 + TP_GROUPS.length : 3;
+  var prj = tpProjects(list);
+  // the list title says how many projects (and of how many accounts)
+  var c = document.getElementById('gCount');
+  if (c)
+    c.textContent =
+      prj.length.toLocaleString('en-GB') +
+      ' project' +
+      (prj.length === 1 ? '' : 's') +
+      ' · ' +
+      list.length.toLocaleString('en-GB') +
+      ' account' +
+      (list.length === 1 ? '' : 's');
   var h =
-    '<div class="tptop"><div class="seg tpmode"><button class="' +
-    (grid ? 'on' : '') +
-    '" onclick="setTpMode(\'grid\')">Grid</button><button class="' +
-    (grid ? '' : 'on') +
-    '" onclick="setTpMode(\'compact\')">Compact</button></div><span class="tpinfo">' +
-    prj.length +
-    ' open project' +
+    '<div class="tptop"><span class="tpn"><b>' +
+    prj.length.toLocaleString('en-GB') +
+    '</b> open project' +
     (prj.length === 1 ? '' : 's') +
     (S.clean ? ' (real projects only)' : '') +
-    ' · click a project to tick its touchpoints per account</span></div>' +
+    '</span><span class="tpinfo">click a project to tick its touchpoints per account</span></div>' +
     tpLegendHtml() +
-    '<div class="tw tpw2"><table class="tb ' +
-    (grid ? 'tpgrid' : 'tpcomp') +
-    '"><thead><tr><th class="pj">Project</th>' +
-    (grid
-      ? '<th class="pa">Accounts</th>' +
-        TP_GROUPS.map(function (g) {
-          return '<th class="gh" style="--gc:' + g.c + '">' + esc(g.t) + '</th>';
-        }).join('')
-      : '<th class="ph">Phase</th><th class="pa">Accounts</th>') +
-    '</tr></thead><tbody>';
-  prj.slice(0, S.g.limit).forEach(function (x) {
+    '<div class="tw tpw2"><table class="tb tpcomp"><thead><tr><th class="cnt">#</th><th class="pj">Project</th><th class="ph">Phase</th><th class="pa">Accounts</th></tr></thead><tbody>';
+  prj.slice(0, S.g.limit).forEach(function (x, n) {
     var open = !!S.tpOpenP[x.id],
       jsId = esc(x.id).replace(/'/g, '&#39;');
     h +=
@@ -353,23 +300,18 @@ function renderTpTab(box, list) {
       jsId +
       '\')" title="Click to ' +
       (open ? 'close' : 'open') +
-      ' the accounts × touchpoints table"><td class="pj"><span class="caret">' +
+      ' the accounts × touchpoints table"><td class="cnt">' +
+      (n + 1) +
+      '</td><td class="pj"><span class="caret">' +
       (open ? '▾' : '▸') +
       '</span><b>' +
       esc(x.name || '(no name)') +
-      '</b>' +
-      (grid ? '<span class="phb">' + esc(phaseLabel(x.ph)) + '</span>' : '') +
-      '</td>' +
-      (grid
-        ? '<td class="pa">' +
-          tpAccList(x) +
-          '</td>' +
-          TP_GROUPS.map(function (g) {
-            return '<td class="gc">' + tpGridCell(x, g) + '</td>';
-          }).join('')
-        : '<td class="ph"><span class="phb">' + esc(phaseLabel(x.ph)) + '</span></td><td class="pa">' + tpAccList(x) + '</td>') +
-      '</tr>';
-    if (open) h += '<tr class="tpx"><td colspan="' + ncol + '">' + tpOpenHtml(x) + '</td></tr>';
+      '</b></td><td class="ph"><span class="phb">' +
+      esc(phaseLabel(x.ph)) +
+      '</span></td><td class="pa">' +
+      tpAccList(x) +
+      '</td></tr>';
+    if (open) h += '<tr class="tpx"><td colspan="4">' + tpOpenHtml(x) + '</td></tr>';
   });
   h += '</tbody></table></div>';
   if (!prj.length) h += '<p class="hint nomatch">No open real projects for these accounts.</p>';

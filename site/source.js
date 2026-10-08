@@ -16,7 +16,7 @@ var SITE = {
   last: null, // hash of the last data read
   // shown very small at the bottom left of the page, so you can check that the server runs the newest version
   // (change it with every update: the date + a word about what changed)
-  version: 'version 2026-10-08b · touchpoints grid / compact',
+  version: 'version 2026-10-08c · touchpoints compact + counter',
   // Faster opening: the data read from the Excel file is kept in this browser (IndexedDB) together with the
   // file's date + size. Next time, if the file on the server has the same date + size, the kept copy is used
   // and the Excel file is not downloaded or decoded again. Change cacheVersion when server/Pipeline.js changes

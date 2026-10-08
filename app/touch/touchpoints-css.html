@@ -42,7 +42,14 @@ button.tpk:not(.ro):hover {
   box-shadow: 0 0 0 3px var(--gl, #eee);
 }
 
-/* top of the view: Grid | Compact + info, then the legend */
+/* top of the view: the number of projects + info, then the legend */
+.tpn {
+  font-size: 14px;
+  color: var(--text);
+}
+.tpn b {
+  font-size: 16px;
+}
 .tptop {
   display: flex;
   align-items: center;
@@ -108,20 +115,14 @@ button.tpk:not(.ro):hover {
 .tw.tpw2 {
   overflow-x: auto;
 }
-.tb.tpgrid,
 .tb.tpcomp {
   table-layout: fixed;
 }
-.tb.tpgrid {
-  min-width: 1180px; /* fits a normal screen; scrolls sideways on small ones */
-}
-.tb.tpgrid td.gc {
-  padding-left: 4px;
-  padding-right: 4px;
-}
-.tb.tpgrid td,
 .tb.tpcomp td {
   vertical-align: top;
+}
+.tb.tpcomp th.cnt {
+  width: 44px;
 }
 .tr.tpr,
 .tb tr.tpr {
@@ -139,56 +140,15 @@ button.tpk:not(.ro):hover {
   color: var(--text-faint);
   font-size: 11px;
 }
-.tb.tpgrid th.pj {
-  width: 140px;
-}
-.tb.tpgrid th.pa {
-  width: 160px;
-}
 .tb.tpcomp th.pj {
   width: 40%;
 }
 .tb.tpcomp th.ph {
   width: 90px;
 }
-.tb.tpgrid td.pj .phb {
-  display: block;
-  width: max-content;
-  margin: 4px 0 0 14px;
+.tb.tpcomp td.ph .phb {
+  margin-left: 0;
 }
-/* Grid: the group header with a soft line in its shade; ALL touchpoints, the phase's ones lit, the others faded */
-.tb.tpgrid th.gh {
-  border-bottom: 3px solid var(--gc);
-  font-size: 11.5px;
-}
-.tpi {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 1px 4px;
-  margin: 1px 0;
-  border-radius: 5px;
-  font-size: 10.5px;
-  line-height: 1.3;
-  color: var(--text);
-  opacity: 0.32; /* not for this phase */
-}
-.tpi .tpk {
-  width: 11px;
-  height: 11px;
-  font-size: 7.5px;
-  border-width: 1.3px;
-}
-.tpi.on {
-  opacity: 1;
-  background: var(--gl); /* for this phase: lit with the group tint */
-}
-.tpi small {
-  margin-left: auto;
-  font-size: 10px;
-  color: var(--text-soft);
-}
-
 /* the opened project: phase buttons + accounts × touchpoints table */
 .tb tr.tpx > td {
   background: #f6f8fc;
