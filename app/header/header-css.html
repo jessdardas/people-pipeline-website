@@ -350,49 +350,52 @@
 /* row with levels 1 + 2: BUSINESS | NO BUSINESS, the map cards, and on the right the switches + Filters */
 .nav.lvl12 {
   display: flex;
-  align-items: stretch;
-  gap: 18px 22px;
-  padding-top: 14px;
-  padding-bottom: 14px;
+  align-items: center;
+  gap: 12px 18px;
+  padding-top: 10px;
+  padding-bottom: 10px;
   border-bottom: none;
 }
-/* 1. the big BUSINESS | NO BUSINESS switch */
+/* 1. the BUSINESS | NO BUSINESS switch: what is not selected is faded, so the selected view stands out */
 .biz {
   display: flex;
-  border: 2px solid var(--text);
-  border-radius: 14px;
+  align-self: center;
+  border: 1.5px solid var(--text);
+  border-radius: 10px;
   overflow: hidden;
   flex: none;
 }
 .biz button {
-  padding: 0 26px;
-  min-height: 64px;
-  font-size: 15px;
+  padding: 0 16px;
+  min-height: 36px;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--text-soft);
+  color: var(--text);
   background: var(--surface);
+  opacity: 0.38;
   transition:
     background 0.15s,
-    color 0.15s;
+    color 0.15s,
+    opacity 0.15s;
 }
 .biz button + button {
-  border-left: 2px solid var(--text);
+  border-left: 1.5px solid var(--text);
 }
 .biz button:hover {
-  color: var(--text);
-  background: var(--soft);
+  opacity: 0.75;
 }
 .biz button.on {
   background: var(--text);
   color: #fff;
+  opacity: 1;
 }
-/* 2. the maps of that choice, as cards */
+/* 2. the maps of that choice, as cards: the selected one strong, the others faded */
 .maps {
   display: flex;
-  gap: 10px;
-  align-items: stretch;
+  gap: 8px;
+  align-items: center;
   flex-wrap: wrap;
 }
 .mcard {
@@ -400,57 +403,60 @@
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-  gap: 2px;
-  min-width: 190px;
-  padding: 10px 18px;
+  gap: 0;
+  min-width: 150px;
+  padding: 6px 14px;
   border: 1.5px solid var(--line);
-  border-radius: 14px;
+  border-radius: 10px;
   background: var(--surface);
   text-align: left;
+  opacity: 0.45;
   transition:
     border-color 0.15s,
     box-shadow 0.15s,
-    transform 0.15s;
+    opacity 0.15s;
 }
 .mcard:hover {
+  opacity: 0.8;
   border-color: var(--text-faint);
-  transform: translateY(-1px);
 }
 .mcard .mno {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--text-faint);
 }
 .mcard .mt {
-  font-size: 16px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--text);
 }
 .mcard .mn {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-soft);
 }
 .mcard.on {
+  opacity: 1;
   border: 2px solid var(--accent);
   background: #f2f6fd;
-  box-shadow: 0 4px 14px rgba(31, 79, 154, 0.12);
+  box-shadow: 0 3px 10px rgba(31, 79, 154, 0.12);
 }
 .mcard.on .mno {
   color: var(--accent);
 }
 .mall {
   align-self: center;
-  padding: 7px 14px;
+  padding: 6px 12px;
   border-radius: 999px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--text-soft);
   border: 1.5px dashed var(--line);
+  opacity: 0.6;
 }
 .mall:hover {
-  color: var(--text);
-  border-color: var(--text-faint);
+  opacity: 1;
 }
 .mall.on {
+  opacity: 1;
   border-style: solid;
   border-color: var(--accent);
   color: var(--text);
@@ -493,9 +499,7 @@
 }
 @media (max-width: 760px) {
   .biz button {
-    padding: 0 16px;
-    min-height: 52px;
-    font-size: 13px;
+    padding: 0 12px;
   }
   .mcard {
     min-width: 0;

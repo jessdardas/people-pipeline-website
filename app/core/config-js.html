@@ -95,7 +95,7 @@ var INTERNAL_KINDS = ['inn', 'ico', 'rfp', 'own']; // shown → the "other (i.n.
 //   - the account's own owner is an internal PERSON (INTERNAL_USERS: Roland, Cybel(le), Roger, Sam(my), Dany Daaboul).
 //     The service-unit team owners (pslab-london, pslab-beirut, …) are NOT internal users: in the file they own most
 //     accounts (about 17,500 of 23,000), so they stay. (For PROJECT owners, PSLAB does count - see the 'own' kind.)
-// Internal people are also never listed in the Users row, the Filters panel or as activity owners.
+// Internal people are also never listed in the Users row or the Filters panel. Activities are never hidden.
 // Add 'inn' / 'ico' to ACCOUNT_EXCLUDE_KINDS to remove the accounts of those projects too.
 var ACCOUNT_EXCLUDE_KINDS = ['own'];
 var INTERNAL_USERS = /\b(roland|cybel|roger|sam|dany daaboul)/i;
@@ -118,7 +118,7 @@ var ACT_COLS = {
   date: [/actualend/, /actualstart/, /scheduledstart/, /scheduledend/, /^(date|activitydate)$/, /date/, /createdon/],
   type: [/^activitytype/, /activitytypecode/, /^type$/, /type/, /category/],
   subject: [/^subject$/, /subject/, /title/, /description/, /name$/],
-  owner: [/^owneridname$/, /^ownername$/, /owner/] // "Real projects only" hides activities of internal users
+  owner: [/^owneridname$/, /^ownername$/, /owner/] // the activity owner (shown in the details)
 };
 // Activities of these types are not shown anywhere (type or, without a type, subject).
 var ACT_HIDE = /\btasks?\b/i;
@@ -165,16 +165,17 @@ var PUBLICATION_COL = /^pslabpublication(\d*)$/;
 
 // --- TOUCHPOINTS: the reference (source of truth) ------------------------------------------------------------
 // Used by the Touchpoints tab (Current pipeline), the project pop-up and the account details (app/touch/touchpoints-js).
-// Groups: k = id, t = name, c = the group colour (kept subtle: a thin border / dot).
+// Groups: k = id, t = name, c = the group's colour (a soft shade: header line, ticked boxes), l = its light tint
+// (the background of the touchpoints that apply to the project's phase).
 var TP_GROUPS = [
-  { k: 'reach', t: 'Reach out', c: '#4a7fd4' },
-  { k: 'design', t: 'Design', c: '#9b59b6' },
-  { k: 'tech', t: 'Technical', c: '#16a085' },
-  { k: 'comm', t: 'Commercial', c: '#d68910' },
-  { k: 'logi', t: 'Logistics', c: '#7f8c8d' },
-  { k: 'site', t: 'Site', c: '#c0392b' },
-  { k: 'close', t: 'Project closure', c: '#8e6c3a' },
-  { k: 'brand', t: 'Brand', c: '#d4519c' }
+  { k: 'reach', t: 'Reach out', c: '#6f8fbf', l: '#e3ebf6' },
+  { k: 'design', t: 'Design', c: '#9a82b8', l: '#ece6f3' },
+  { k: 'tech', t: 'Technical', c: '#5f9e94', l: '#e0efec' },
+  { k: 'comm', t: 'Commercial', c: '#c09a5b', l: '#f5ecdd' },
+  { k: 'logi', t: 'Logistics', c: '#8c9399', l: '#eceeef' },
+  { k: 'site', t: 'Site', c: '#c27f74', l: '#f6e5e2' },
+  { k: 'close', t: 'Project closure', c: '#9c8a6a', l: '#efeae1' },
+  { k: 'brand', t: 'Brand', c: '#c486a6', l: '#f5e6ee' }
 ];
 // Touchpoints: k = id (also the future database reference), t = name, g = group, type = 'av' (Added value → round ○)
 // or 'del' (Deliverable → square □), ph = the phases it applies to ('any' = every phase, also projects without phase).
@@ -209,9 +210,9 @@ var TOUCHPOINTS = [
   { k: 'booklet', t: 'Project Booklet', g: 'brand', type: 'av', ph: ['P1', 'P2', 'P5'] }
 ];
 // Ticked or not: for now every touchpoint starts unticked and can be ticked / unticked on screen only (nothing is
-// saved; a reload clears it). A tick belongs to one project, one phase and one touchpoint. Later the state comes from
-// the database: set TP_SOURCE to a function (projectKey, phase, touchpointKey) → true / false and TP_READONLY to
-// true - nothing else has to change.
+// saved; a reload clears it). A tick belongs to one ACCOUNT on one PROJECT and one touchpoint. Later the state comes
+// from the database: set TP_SOURCE to a function (projectKey, accountId, touchpointKey) → true / false and
+// TP_READONLY to true - nothing else has to change.
 var TP_SOURCE = null;
 var TP_READONLY = false;
 
@@ -240,7 +241,10 @@ var S = {
   tpOpen: null, // Stay in touch policy: the account whose touchpoints pop-up is open (account index)
   wf: null, // Stay in touch policy: week filter { start (Monday of the week), types: { 'Site visit': 1, … } }
   wm: null, // Stay in touch policy: the week whose filter menu is open (Monday), or null
-  tpTemp: {}, // touchpoints ticked on screen ("projectKey|touchpointKey" = 1) - temporary, never saved
+  tpTemp: {}, // touchpoints ticked on screen ("projectKey|accountId|touchpointKey" = 1) - temporary, never saved
+  tpMode: 'grid', // Touchpoints view: 'grid' (all touchpoints by group, the phase's ones lit) or 'compact'
+  tpOpenP: {}, // Touchpoints view: the projects opened (their accounts × touchpoints table shown under them)
+  tpPh: {}, // Touchpoints view: the phase shown in an opened project's table (standard: its current phase)
   staySort: 'name', // Stay in touch policy: sort - 'name' (default), 'recent', 'most', 'unit'
   pickMode: false, // "check to export" is ticked: tick boxes in the # column of the account table
   pick: {}, // the accounts ticked for export (account id = 1); kept until "clear" or the page is closed

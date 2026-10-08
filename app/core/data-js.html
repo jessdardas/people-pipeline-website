@@ -503,19 +503,10 @@ function latestDate(list) {
   return m;
 }
 
-/** The account's activities as shown (newest first, no tasks): with "Real projects only" on, without the activities
- *  of internal users (INTERNAL_USERS as the activity owner). Use this everywhere activities are shown. */
+/** The account's activities as shown: all of them, newest first (only tasks are left out, ACT_HIDE).
+ *  "Real projects only" never hides activities - it only removes accounts and projects. */
 function acts(a) {
-  var hide = S.clean && S.px.own;
-  if (a._actsHide !== hide) {
-    a._actsHide = hide;
-    a._acts = hide
-      ? a.activities.filter(function (x) {
-          return !INTERNAL_USERS.test(x.owner);
-        })
-      : a.activities;
-  }
-  return a._acts;
+  return a.activities;
 }
 
 /** Is the whole account removed by "Real projects only" (everywhere: maps, lists, search, users, exports, details)?

@@ -1,68 +1,59 @@
 <style>
-/* Touchpoints (touch/touchpoints-js.html): one box = shape by type + group colour (--gc), kept subtle */
-.tprow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-.tpc {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 9px 3px 6px;
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--gc);
-  border-radius: 6px;
-  background: var(--surface);
-  font-size: 11.5px;
-  color: var(--text-soft);
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    background 0.12s,
-    color 0.12s;
-}
-.tpc:hover {
-  background: var(--soft);
-  color: var(--text);
-}
-.tpc.ro {
-  cursor: default;
-}
-.tpc.on {
-  color: var(--text);
-  font-weight: 600;
-}
-/* the shape: Added value = round ○, Deliverable = square □; ticked = filled with the group colour + ✓ */
-.shape {
-  width: 13px;
-  height: 13px;
+/* Touchpoints (touch/touchpoints-js.html) - soft group shades (--gc = shade, --gl = light tint), kept calm */
+
+/* a tick box: round = Added value, square = Deliverable; ticked = filled with the group shade + ✓ */
+.tpk {
+  width: 15px;
+  height: 15px;
   flex: none;
-  border: 1.6px solid var(--gc, var(--text-soft));
-  background: var(--surface);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
+  border: 1.5px solid var(--gc, #8c9399);
+  background: #fff;
+  color: #fff;
+  font-size: 9.5px;
   font-weight: 800;
   line-height: 1;
-  color: #fff;
+  padding: 0;
+  cursor: pointer;
+  vertical-align: middle;
+  transition: background 0.12s;
 }
-.tpc.av .shape,
-.shape.av {
+span.tpk {
+  cursor: default;
+}
+.tpk.av {
   border-radius: 50%;
 }
-.tpc.del .shape,
-.shape.del {
-  border-radius: 2px;
+.tpk.del {
+  border-radius: 3px;
 }
-.tpc.on .shape {
-  background: var(--gc);
+.tpk.on {
+  background: var(--gc, #8c9399);
 }
-.tpc.on .shape::after {
+.tpk.on::after {
   content: '✓';
 }
-/* legend */
+.tpk.ro {
+  cursor: default;
+}
+button.tpk:not(.ro):hover {
+  box-shadow: 0 0 0 3px var(--gl, #eee);
+}
+
+/* top of the view: Grid | Compact + info, then the legend */
+.tptop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.tpinfo {
+  font-size: 12px;
+  color: var(--text-faint);
+}
 .tpleg {
   display: flex;
   flex-wrap: wrap;
@@ -72,29 +63,23 @@
   font-size: 11.5px;
   color: var(--text-soft);
 }
-.tplg {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-.tplg i {
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
-  background: var(--gc);
-}
+.tplg,
 .tpsh {
   display: inline-flex;
   align-items: center;
   gap: 5px;
 }
-.tpsh .shape {
-  --gc: var(--text-soft);
+.tplg i {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--gl);
+  border: 1.5px solid var(--gc);
 }
-.tpinfo {
-  font-size: 12px;
-  color: var(--text-faint);
-  margin: 0 0 8px;
+.tpsh .tpk {
+  width: 12px;
+  height: 12px;
+  font-size: 8px;
 }
 .phb {
   display: inline-block;
@@ -106,21 +91,6 @@
   font-weight: 700;
   color: var(--text-soft);
 }
-/* the Touchpoints view */
-.tb.tptab2 th.pj,
-.tb.tptab2 td.pj {
-  width: 22%;
-}
-.tb.tptab2 th.pa,
-.tb.tptab2 td.pa {
-  width: 26%;
-}
-.tb.tptab2 td {
-  vertical-align: top;
-}
-.tb.tptab2 tbody tr {
-  cursor: pointer;
-}
 .pacc {
   list-style: none;
   margin: 0;
@@ -128,21 +98,195 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 12.5px;
+  font-size: 12px;
 }
-.pacc .lnk {
+.pacc b {
+  font-weight: 600;
+}
+
+/* the project rows (both looks) */
+.tw.tpw2 {
+  overflow-x: auto;
+}
+.tb.tpgrid,
+.tb.tpcomp {
+  table-layout: fixed;
+}
+.tb.tpgrid {
+  min-width: 1180px; /* fits a normal screen; scrolls sideways on small ones */
+}
+.tb.tpgrid td.gc {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+.tb.tpgrid td,
+.tb.tpcomp td {
+  vertical-align: top;
+}
+.tr.tpr,
+.tb tr.tpr {
+  cursor: pointer;
+}
+.tb tr.tpr:hover td {
+  background: #fbfcfe;
+}
+.tb tr.tpr.open td {
+  background: #f6f8fc;
+}
+.tpr .caret {
+  display: inline-block;
+  width: 14px;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+.tb.tpgrid th.pj {
+  width: 140px;
+}
+.tb.tpgrid th.pa {
+  width: 160px;
+}
+.tb.tpcomp th.pj {
+  width: 40%;
+}
+.tb.tpcomp th.ph {
+  width: 90px;
+}
+.tb.tpgrid td.pj .phb {
+  display: block;
+  width: max-content;
+  margin: 4px 0 0 14px;
+}
+/* Grid: the group header with a soft line in its shade; ALL touchpoints, the phase's ones lit, the others faded */
+.tb.tpgrid th.gh {
+  border-bottom: 3px solid var(--gc);
+  font-size: 11.5px;
+}
+.tpi {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 4px;
+  margin: 1px 0;
+  border-radius: 5px;
+  font-size: 10.5px;
+  line-height: 1.3;
   color: var(--text);
+  opacity: 0.32; /* not for this phase */
+}
+.tpi .tpk {
+  width: 11px;
+  height: 11px;
+  font-size: 7.5px;
+  border-width: 1.3px;
+}
+.tpi.on {
+  opacity: 1;
+  background: var(--gl); /* for this phase: lit with the group tint */
+}
+.tpi small {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-soft);
+}
+
+/* the opened project: phase buttons + accounts × touchpoints table */
+.tb tr.tpx > td {
+  background: #f6f8fc;
+  padding: 4px 14px 14px;
+  cursor: default;
+}
+.tpx-h {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin: 2px 0 8px;
+}
+.tpphb {
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+.tpphb.cur {
+  border-color: var(--accent);
+}
+.tpphb.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.tpmw {
+  overflow-x: auto;
+}
+table.tpm {
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 12px;
+}
+table.tpm th,
+table.tpm td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--soft);
+}
+table.tpm th.ma,
+table.tpm td.ma {
+  text-align: left;
+  min-width: 180px;
+  position: sticky;
+  left: 0;
+  background: #fff;
+}
+table.tpm td.ma small {
+  display: block;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+table.tpm td.ma .lnk {
+  color: var(--text);
+  font-weight: 600;
   text-decoration: none;
-  font-size: 12.5px;
 }
-.pacc .lnk:hover {
-  text-decoration: underline;
+table.tpm th.mg {
+  background: var(--gl);
+  border-bottom: 2px solid var(--gc);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
 }
-/* the project pop-up */
-.pacc2 {
-  margin: 10px 0 12px;
-  font-size: 12.5px;
-  line-height: 1.7;
+table.tpm th.mt {
+  background: var(--gl);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-soft);
+  text-align: center;
+  min-width: 74px;
+  max-width: 110px;
+  white-space: normal;
+  vertical-align: bottom;
+}
+table.tpm th.mt .tpk {
+  display: flex;
+  margin: 0 auto 3px;
+  width: 11px;
+  height: 11px;
+}
+table.tpm td.mc {
+  text-align: center;
+}
+table.tpm tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* the project pop-up (wide) */
+.tpop.wide {
+  width: min(1100px, 100%);
 }
 .tpph {
   margin-top: 14px;
@@ -167,27 +311,30 @@
   color: var(--text-faint);
   margin-left: 6px;
 }
-.tpg {
+
+/* account details: this account's tick boxes for each project */
+.tprow {
   display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  margin: 6px 0;
+  flex-wrap: wrap;
+  gap: 4px;
 }
-.tpg-n {
-  width: 104px;
-  flex: none;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--gc);
-  padding-top: 4px;
+.tpl {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px 2px 5px;
+  border-radius: 5px;
+  background: var(--gl);
+  font-size: 11.5px;
+  color: var(--text);
+  cursor: pointer;
 }
-/* account details */
 .tb.tpacc td {
   vertical-align: top;
 }
 .tb.tpacc th.pj,
 .tb.tpacc td.pj {
-  width: 30%;
+  width: 28%;
 }
 .tb.tpacc th.ph,
 .tb.tpacc td.ph {
