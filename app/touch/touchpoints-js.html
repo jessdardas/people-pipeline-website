@@ -51,17 +51,20 @@ function phaseLabel(ph) {
   return ph === 'nophase' ? 'No phase' : ph === 'all' ? 'All' : ph;
 }
 
-/** The visible accounts of a project ("Real projects only" removes internal accounts), A→Z. */
+/** All the accounts of a project - always shown, whatever the switches - by category (PROJECT_ACCOUNT_ORDER:
+ *  Design Practice, End User – Individual, – Brand, – Developer, CCE, others), then A→Z. */
 function prjAccounts(x) {
+  var rank = function (a) {
+    var i = PROJECT_ACCOUNT_ORDER.indexOf(catKey(a.category));
+    return i < 0 ? 99 : i;
+  };
   return x.accs
     .map(function (i) {
       return S.acc[i];
     })
-    .filter(function (a) {
-      return a && !hiddenAcc(a);
-    })
+    .filter(Boolean)
     .sort(function (p, q) {
-      return p.name.localeCompare(q.name);
+      return rank(p) - rank(q) || p.name.localeCompare(q.name);
     });
 }
 
@@ -138,7 +141,10 @@ function tpMatrixHtml(x, ph) {
     return x.tps.length;
   });
   var h =
-    '<div class="tpmw"><table class="tpm"><thead><tr><th class="ma" rowspan="2">Account</th>' +
+    // an exact width (account column 190px + 92px per touchpoint): the account column never changes from phase to phase
+    '<div class="tpmw"><table class="tpm" style="width:' +
+    (190 + list.length * 92) +
+    'px"><thead><tr><th class="ma" rowspan="2">Account</th>' +
     groups
       .map(function (x) {
         return '<th class="mg" colspan="' + x.tps.length + '" style="--gc:' + x.g.c + ';--gl:' + x.g.l + '" title="' + esc(x.g.t) + '">' + esc(x.g.t) + '</th>';
@@ -279,7 +285,11 @@ function tpAccList(x) {
 }
 
 function renderTpTab(box, list) {
-  var prj = tpProjects(list);
+  // the search box (above the list) looks for the project name here
+  var q = (S.g.q || '').toLowerCase().trim();
+  var prj = tpProjects(list).filter(function (x) {
+    return !q || String(x.name).toLowerCase().indexOf(q) >= 0;
+  });
   // the list title says how many projects (and of how many accounts)
   var c = document.getElementById('gCount');
   if (c)
@@ -295,7 +305,8 @@ function renderTpTab(box, list) {
   var leg = document.getElementById('dtLeg');
   if (leg) leg.innerHTML = tpLegendHtml();
   var h = tpProjTable(prj.slice(0, S.g.limit));
-  if (!prj.length) h += '<p class="hint nomatch">No open real projects for these accounts.</p>';
+  if (!prj.length)
+    h += '<p class="hint nomatch">' + (q ? 'No project matches "' + esc(S.g.q) + '".' : 'No open real projects for these accounts.') + '</p>';
   if (prj.length > S.g.limit)
     h +=
       '<button class="more" onclick="S.g.limit+=200;renderList()">Show more (' +

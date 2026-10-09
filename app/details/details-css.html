@@ -367,4 +367,26 @@
 .det h3 .clp {
   vertical-align: middle;
 }
+/* activities: details hidden until the activity is clicked */
+.actl li .adx {
+  display: none;
+}
+.actl li.open .adx {
+  display: block;
+}
+.actl li.exp {
+  cursor: pointer;
+}
+.actl .acar {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-faint);
+  transition: transform 0.15s;
+}
+.actl li.open .acar {
+  transform: rotate(90deg);
+}
+.actl li.open .ax {
+  display: block; /* the whole text when opened */
+}
 </style>

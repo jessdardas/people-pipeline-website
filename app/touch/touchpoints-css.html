@@ -218,9 +218,10 @@ table.tpm th.mg {
   height: 30px;
   max-height: 30px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 0; /* lets a one-column group shorten its name with … instead of growing */
+  overflow: visible; /* a name wider than its columns (e.g. Project closure) spills a little over the sides */
+  max-width: 0; /* …while the columns below keep their width */
+  position: relative;
+  z-index: 1;
 }
 /* every touchpoint column has the same width and its name starts at the top, so switching phases keeps the
    spacing identical */
@@ -230,6 +231,8 @@ table.tpm {
 table.tpm th.ma,
 table.tpm td.ma {
   width: 190px;
+  min-width: 190px;
+  max-width: 190px;
 }
 table.tpm th.mt,
 table.tpm td.mc {

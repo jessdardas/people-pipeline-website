@@ -68,6 +68,10 @@ var MAPS = {
       { k: 'noopen', t: 'No open project', opt: 1 }
     ]),
     rows: CATEGORY_ROWS,
+    // "Without P0" switch on: no P0 column (01 Current client alone; combined with Current demand it stays)
+    hideCol: function (c) {
+      return S.noP0 && c.k === P0_PHASE;
+    },
     // an account goes in EVERY phase column where it has an open project (once per phase); its I.N.
     // shown I.N. / intercompany / excluded-from-pipeline / internal-owner projects (INTERNAL_KINDS) go in "other";
     // no open project at all = "No open project".
@@ -175,6 +179,7 @@ var MAPS = {
 // 01 Current client (category × phase of the open projects)
 MAPS[6] = Object.assign({}, MAPS[1], {
   title: 'Current demand',
+  hideCol: null, // demand = P0: its P0 column always shows
   filter: function (a) {
     return isDemand(a) && (!a.open.length || keptOpen(a).length > 0);
   }
@@ -190,6 +195,7 @@ function isDemand(a) {
 //   25 = 02 Past pipeline + 05 Past clients (same rows; the columns of both: 0–6 months … 4+ years)
 MAPS[16] = Object.assign({}, MAPS[1], {
   title: 'Current client + Current demand',
+  hideCol: null, // the demand accounts are in P0
   parts: [1, 6],
   filter: function (a) {
     return MAPS[1].filter(a) || MAPS[6].filter(a);

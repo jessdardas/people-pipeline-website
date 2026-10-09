@@ -11,26 +11,27 @@ function renderSwitches() {
 function cleanHtml() {
   // in the ▾ menu, next to each kind: how many ACCOUNTS it concerns - always the same, ticked or not
   // (counted with "Real projects only" off, in the current service unit / user / New DB / Filters selection):
-  //   Internal owner = the accounts that are removed completely (an internal-owner project, or an internal owner)
-  //   the other kinds = the accounts that have at least one such project (those projects are taken out)
+  //   = the accounts that have at least one such project (those projects are taken out, the accounts stay)
   var n = {},
     keep = S.clean;
   S.clean = false;
   S.acc.forEach(function (a) {
     if (!pass(a)) return;
     PROJECT_EXCLUDE.forEach(function (e) {
-      var hit =
-        e.k === 'own'
-          ? a.intOwner || a.intKinds.own
-          : a.pj.some(function (o) {
-              return o[e.k];
-            });
+      var hit = a.pj.some(function (o) {
+        return o[e.k];
+      });
       if (hit) n[e.k] = (n[e.k] || 0) + 1;
     });
   });
   S.clean = keep;
   var h =
     '<span class="rps">' +
+    (onView(1)
+      ? '<span class="rp"><label class="sw" title="Leave out P0 projects (Current client)"><input type="checkbox" ' +
+        (S.noP0 ? 'checked' : '') +
+        ' onchange="setNoP0(this.checked)"><i></i>Without P0</label></span>'
+      : '') +
 
     '<span class="rp"><label class="sw" title="Leave out ' +
     esc(
@@ -47,7 +48,7 @@ function cleanHtml() {
     ' onchange="setClean(this.checked)"><i></i>Real projects only</label><button class="rp-b" onclick="S.xm=!S.xm;renderSwitches()" title="Choose what is left out">▾</button>';
   if (S.xm)
     h +=
-      '<div class="rp-m"><div class="rp-h">Leave out these projects<br><small>number = accounts concerned (whole accounts removed for Internal owner) · unticked = shown, in "other" on map 01</small></div>' +
+      '<div class="rp-m"><div class="rp-h">Leave out these projects<br><small>number = accounts with such projects (the projects are taken out, the accounts stay) · unticked = shown, in "other" on map 01</small></div>' +
       PROJECT_EXCLUDE.map(function (e, i) {
         return (
           '<label><input type="checkbox" ' +
@@ -58,7 +59,7 @@ function cleanHtml() {
           ')">' +
           esc(e.t) +
           '<small title="' +
-          (e.k === 'own' ? 'accounts removed completely' : 'accounts with such projects') +
+          'accounts with such projects' +
           '">' +
           (n[e.k] || 0).toLocaleString('en-GB') +
           ' acc.</small></label>'
@@ -66,6 +67,11 @@ function cleanHtml() {
       }).join('') +
       '<div class="rp-f"><button class="lnk" onclick="S.px=defaultPx();changed();S.xm=true;renderSwitches()">standard</button></div></div>';
   return h + '</span></span>';
+}
+
+function setNoP0(on) {
+  S.noP0 = on;
+  changed();
 }
 
 function setClean(on) {
@@ -106,7 +112,8 @@ function scopeText() {
     );
   if (onView(1)) parts.push(p); // pipelines only apply to map 01
   if ([1, 2, 5, 6, 16, 25].indexOf(S.view) >= 0) {
-    // the switch: only mentioned when it differs from the standard view
+    // the switches: only mentioned when they differ from the standard view
+    if (!S.noP0 && onView(1)) parts.push('incl. P0');
     var std = defaultPx(),
       diff = PROJECT_EXCLUDE.filter(function (e) {
         return !S.clean ? std[e.k] : !!S.px[e.k] !== !!std[e.k];
@@ -220,7 +227,8 @@ function render() {
   });
   var cols = def.cols
     .filter(function (x) {
-        return !x.opt || colT[x.k];
+      if (def.hideCol && def.hideCol(x)) return false; // 01 Current client "Without P0": no P0 column
+      return !x.opt || colT[x.k];
     })
     .map(function (x) {
       // No business: a classification that is not picked stays as an empty gap (the map keeps its size)

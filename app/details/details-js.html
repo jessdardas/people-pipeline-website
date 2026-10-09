@@ -241,9 +241,9 @@ function webLink(u) {
 }
 
 /* ---------- activities in the account details: a tidy list, newest first ----------
-   Each activity = one row: the date (left), the type (colour, ACT_COLORS) + the subject, a small line with the
-   other filled-in columns (owner, regarding, status …), and long texts (e.g. description) below, 2 lines
-   (click to see all). On top: filter by type, newest / oldest first. Tasks are never shown (ACT_HIDE). */
+   Each activity = one row: the date (left), the type (colour, ACT_COLORS) + the subject. Its details (owner,
+   regarding, status, description …) only show when you click the activity (click again to hide them).
+   On top: filter by type, newest / oldest first. Tasks are never shown (ACT_HIDE). */
 var ACT_VIEW = { type: '', asc: false }; // the choice above the list (kept while the page is open)
 
 /** The activities block of the details panel (its contents are drawn by renderActs()). */
@@ -326,16 +326,19 @@ function actsHtml(a) {
     var d = x.date != null ? new Date((x.date - 25569) * 864e5) : null,
       meta = [],
       long = [];
-    // emails (ACT_BRIEF): only date, type and subject
-    (ACT_BRIEF.test(x.type) ? [] : more).forEach(function (i) {
+    more.forEach(function (i) {
       var v = cv(x.e.s, i, x.e.j);
       if (v == null || v === '') return;
       var txt = fmtVal(s.cols[i].h, v, a, true);
       if (String(txt).length > 60) long.push(txt);
       else meta.push('<span><em>' + esc(pretty(s.cols[i].h)) + '</em> ' + esc(txt) + '</span>');
     });
+    var has = meta.length || long.length;
+    // only date, type and subject; a click on the activity shows / hides its details
     h +=
-      '<li><div class="ad">' +
+      '<li' +
+      (has ? ' class="exp" onclick="this.classList.toggle(\'open\')" title="Click to see the details"' : '') +
+      '><div class="ad">' +
       (d
         ? '<b>' + d.getUTCDate() + ' ' + d.toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' }) + '</b><small>' + d.getUTCFullYear() + '</small>'
         : '<b>—</b>') +
@@ -343,13 +346,19 @@ function actsHtml(a) {
       (x.type ? actChip(x) : '') +
       '<b>' +
       esc(x.subject || '(no subject)') +
-      '</b></div>' +
-      (meta.length ? '<div class="am">' + meta.join('') + '</div>' : '') +
-      long
-        .map(function (t) {
-          return '<div class="ax" onclick="this.classList.toggle(\'open\')" title="Click to see all">' + esc(t) + '</div>';
-        })
-        .join('') +
+      '</b>' +
+      (has ? '<span class="acar">▸</span>' : '') +
+      '</div>' +
+      (has
+        ? '<div class="adx">' +
+          (meta.length ? '<div class="am">' + meta.join('') + '</div>' : '') +
+          long
+            .map(function (t) {
+              return '<div class="ax">' + esc(t) + '</div>';
+            })
+            .join('') +
+          '</div>'
+        : '') +
       '</div></li>';
   });
   return h + '</ol>';

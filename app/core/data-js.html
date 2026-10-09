@@ -522,6 +522,7 @@ function hiddenAcc(a) {
 
 /** Is this project left out by "Real projects only" - or, with p0 (map 01 only), by "Without P0"? */
 function leftOut(o, p0) {
+  if (p0 && S.noP0 && o.ph === P0_PHASE) return true; // "Without P0": current clients only
   return (
     S.clean &&
     PROJECT_EXCLUDE.some(function (e) {
@@ -541,9 +542,10 @@ function defaultPx() {
 
 /** Projects (all, or only the open ones) that are kept by the "Real projects only" switch. */
 function keptProjects(a, openOnly) {
-  // openOnly = map 01 (open projects): there the "Without P0" switch counts too
+  // openOnly = the open projects (maps 01 / 06): there the "Without P0" switch counts too - for current clients only
+  var p0 = openOnly && !isDemand(a);
   return (openOnly ? a.open : a.pj).filter(function (o) {
-    return !leftOut(o, openOnly);
+    return !leftOut(o, p0);
   });
 }
 

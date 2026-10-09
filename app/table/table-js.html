@@ -303,7 +303,9 @@ function listBlock(meta, closable) {
       ? '<button class="' + (S.listView === 'tp' ? 'on' : '') + '" onclick="setListView(\'tp\')">Touchpoints</button>'
       : '') +
     '</div>' +
-    '<input id="dSearch" placeholder="Search in this list…" value="' +
+    '<input id="dSearch" placeholder="' +
+    (S.listView === 'tp' ? 'Search a project…' : 'Search in this list…') +
+    '" value="' +
     esc(S.g.q) +
     '" oninput="S.g.q=this.value;S.g.limit=100;renderList()">' +
     sortHtml() +
@@ -359,7 +361,8 @@ function setListView(v) {
 }
 
 function gridRows(skipK) {
-  var q = (S.g.q || '').toLowerCase().trim();
+  // in the Touchpoints view the search box looks for projects (renderTpTab), not accounts
+  var q = S.listView === 'tp' ? '' : (S.g.q || '').toLowerCase().trim();
   var list = S.list.filter(function (a) {
     if (q && a.lname.indexOf(q) < 0 && a.owner.toLowerCase().indexOf(q) < 0 && a.country.indexOf(q) < 0 && a.city.toLowerCase().indexOf(q) < 0)
       return false;

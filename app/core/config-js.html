@@ -96,8 +96,12 @@ var INTERNAL_KINDS = ['inn', 'ico', 'rfp', 'own']; // shown → the "other (i.n.
 //     The service-unit team owners (pslab-london, pslab-beirut, …) are NOT internal users: in the file they own most
 //     accounts (about 17,500 of 23,000), so they stay. (For PROJECT owners, PSLAB does count - see the 'own' kind.)
 // Internal people are also never listed in the Users row or the Filters panel. Activities are never hidden.
-// Add 'inn' / 'ico' to ACCOUNT_EXCLUDE_KINDS to remove the accounts of those projects too.
-var ACCOUNT_EXCLUDE_KINDS = ['own'];
+// ACCOUNT_EXCLUDE_KINDS is empty: "Real projects only" takes out the PROJECTS of those kinds, never the whole account -
+// an account with one I.N. / internal project keeps its other projects. (Add 'own' / 'inn' … to remove whole accounts.)
+var ACCOUNT_EXCLUDE_KINDS = [];
+
+// The accounts of a project are listed by category in this order (then A→Z): catKey() names, see matrix/maps-js.
+var PROJECT_ACCOUNT_ORDER = ['design practice', 'end user - individual', 'end user - brand', 'end user - developer', 'cce', 'other'];
 var INTERNAL_USERS = /\b(roland|cybel|roger|sam|dany daaboul)/i;
 
 // The project owner column of the projects sheet (column names in lower case, letters only): the first of these
@@ -111,6 +115,9 @@ var CLS_RENAME = function (cls, order) {
   if (cls === 'current pipeline') return order === 2 ? 'current demand' : 'current client';
   return cls;
 };
+// "Without P0" switch (ON by default, on 01 Current client): P0 projects are left out (the P0 column disappears; an
+// account whose open projects are all P0 leaves the map). Current demand accounts (only P0) are never affected.
+var P0_PHASE = 'P0';
 var CURRENT_DEMAND = function (a) {
   return a.cls === 'current demand';
 };
@@ -129,9 +136,6 @@ var ACT_COLS = {
 };
 // Activities of these types are not shown anywhere (type or, without a type, subject).
 var ACT_HIDE = /\btasks?\b/i;
-// Activities of these types show only their date, type and subject in the account details (no owner, regarding,
-// status, description … - for emails that is mostly the email text and adds nothing).
-var ACT_BRIEF = /e-?mail/i;
 // Colour of each activity type - the same type always has the same colour everywhere (weeks, legend, pop-up,
 // account details). Known types first (first match wins, so the specific ones come before the general ones);
 // every other type found in the file gets the next free colour of ACT_OTHER_COLORS, in A→Z order of the type names.
@@ -239,6 +243,7 @@ var S = {
   pipes: [1], // map 01 opens on Pipeline 1 (empty = all pipelines)
   clean: true, // "Real projects only" switch (maps 01 + 02)
   px: {}, // which PROJECT_EXCLUDE kinds that switch leaves out (filled from their "off" setting in build())
+  noP0: true, // "Without P0" switch (ON by default): P0 projects left out on 01 Current client
   views: [1], // the map cards picked (Current client + Current demand, or Past pipeline + Past clients, together)
   xm: false, // its small menu is open
   nbCls: [], // No business: the classifications picked with the cards (empty = all of them)
