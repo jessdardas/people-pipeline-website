@@ -9,8 +9,7 @@
  *     (ACT_COLORS), tasks left out (ACT_HIDE). Next weeks: empty for now - later the to-dos.
  * (The touchpoints - last site visit, Pub 1, Pub 2 … - are in the pop-up, and as columns in Account listing with
  * the "touchpoints" switch. This view has no export.)
- * Clicking an account opens the touchpoints pop-up: a to-do style checklist (site visit, Pub 1, Pub 2 …) and
- * what the account did (its activities).
+ * Clicking an account opens its account details.
  * Data: build() in core/data-js → acts(a) (actInfo), a.tp (touchpoints()), pubNums().
  */
 
@@ -242,9 +241,9 @@ function renderStay(box, all) {
       return x.date != null && x.date >= first && x.date < end;
     });
     h +=
-      '<tr onclick="openTouch(' +
+      '<tr onclick="openDetail(' +
       a.i +
-      ')" title="Click: touchpoints of this account">' +
+      ')" title="Click: account details">' +
       '<td class="acc"><b>' +
       esc(a.name) +
       '</b><small>' +
@@ -308,96 +307,7 @@ document.addEventListener('click', function (e) {
   }
 });
 
-/* ---------- the touchpoints pop-up (to-do style) ---------- */
-
-/** Opens the pop-up of account i: the touchpoints as a checklist + what the account did (activities). */
-function openTouch(i) {
-  var a = S.acc[i];
-  if (!a) return;
-  S.tpOpen = i;
-  var pubs = pubNums(),
-    item = function (on, title, sub) {
-      return (
-        '<li class="' +
-        (on ? 'done' : '') +
-        '">' +
-        tpBox(on) +
-        '<div><b>' +
-        esc(title) +
-        '</b>' +
-        (sub ? '<small>' + esc(sub) + '</small>' : '') +
-        '</div></li>'
-      );
-    };
-  var h =
-    '<div class="tpop-h"><div><h3>' +
-    esc(a.name) +
-    '</h3><div class="meta">' +
-    esc([unitLabel(a.su), cap(a.cls), cap(a.category)].filter(Boolean).join(' · ')) +
-    '</div></div><button class="tpop-x" onclick="closeTouch()" title="Close">×</button></div>';
-  // 1. the checklist
-  h +=
-    '<h4>Touchpoints</h4><ul class="todo">' +
-    item(
-      a.tp.visit,
-      'Site visit',
-      a.tp.visitDate
-        ? 'last on ' + fmtXl(a.tp.visitDate) + (a.tp.visitWhy ? ' · ' + a.tp.visitWhy : '')
-        : a.tp.visit
-          ? a.tp.visitWhy
-          : 'no site visit yet'
-    ) +
-    pubs
-      .map(function (n) {
-        var l = a.tp.pub[n] || [];
-        return item(l.length > 0, 'Pub ' + n, l.length ? pubText(l) || 'done' : 'not yet');
-      })
-      .join('') +
-    (pubs.length ? '' : '<li class="none">No publication columns (pslab_publication1, 2 …) in the file yet.</li>') +
-    '</ul>';
-  // 2. what the account did (newest first, colour-coded, no tasks)
-  h +=
-    '<h4>What they did <span>(' +
-    acts(a).length +
-    ')</span></h4>' +
-    (acts(a).length
-      ? '<ul class="acts">' +
-        acts(a)
-          .slice(0, 40)
-          .map(function (x) {
-            return (
-              '<li><span class="d">' +
-              esc(x.date ? fmtXl(x.date) : '—') +
-              '</span>' +
-              actChip(x, true) +
-              '<span class="s">' +
-              esc(x.subject) +
-              '</span></li>'
-            );
-          })
-          .join('') +
-        '</ul>' +
-        (acts(a).length > 40 ? '<p class="meta">… and ' + (acts(a).length - 40) + ' older</p>' : '')
-      : '<p class="meta">No activities yet.</p>');
-  // 3. next: the to-dos (later)
-  h +=
-    '<h4>Next</h4><p class="meta">The to-dos (what should happen next) will show here.</p>' +
-    '<div class="tpop-f"><button class="btn ghost" onclick="closeTouch();openDetail(' +
-    a.i +
-    ')">Open account details</button></div>';
-  var box = document.getElementById('tpop');
-  if (!box) {
-    box = document.createElement('div');
-    box.id = 'tpop';
-    box.className = 'tpop-dim';
-    box.onclick = function (e) {
-      if (e.target === box) closeTouch();
-    };
-    document.body.appendChild(box);
-  }
-  box.innerHTML = '<div class="tpop">' + h + '</div>';
-  box.classList.add('open');
-}
+/* ---------- the pop-up (used by the project pop-up in touch/touchpoints-js) ---------- */
 
 function closeTouch() {
   S.tpOpen = null;

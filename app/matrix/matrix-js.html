@@ -1,7 +1,6 @@
 <script>
 /* Draws the matrix for the current view */
-/** The two small switches in the navigation row (#sws), kept quiet on purpose:
- *  - "Without P0" (ON by default, map 01 Current pipeline only): P0 projects are left out (P0_PHASE in core/config-js)
+/** The small switch in the navigation row (#sws), kept quiet on purpose:
  *  - "Real projects only" (ON by default, the whole dashboard) + ▾ menu: which kinds of projects are left out
  *    (PROJECT_EXCLUDE); accounts linked to internal users are removed everywhere (see hiddenAcc() in core/data-js) */
 function renderSwitches() {
@@ -32,11 +31,7 @@ function cleanHtml() {
   S.clean = keep;
   var h =
     '<span class="rps">' +
-    (S.view === 1
-      ? '<span class="rp"><label class="sw" title="Leave out P0 projects (Current pipeline)"><input type="checkbox" ' +
-        (S.noP0 ? 'checked' : '') +
-        ' onchange="setNoP0(this.checked)"><i></i>Without P0</label></span>'
-      : '') +
+
     '<span class="rp"><label class="sw" title="Leave out ' +
     esc(
       PROJECT_EXCLUDE.filter(function (e) {
@@ -71,11 +66,6 @@ function cleanHtml() {
       }).join('') +
       '<div class="rp-f"><button class="lnk" onclick="S.px=defaultPx();changed();S.xm=true;renderSwitches()">standard</button></div></div>';
   return h + '</span></span>';
-}
-
-function setNoP0(on) {
-  S.noP0 = on;
-  changed();
 }
 
 function setClean(on) {
@@ -114,10 +104,9 @@ function scopeText() {
           })
           .join(', ')
     );
-  if (S.view === 1) parts.push(p); // pipelines only apply to map 01
-  if (S.view === 1 || S.view === 2 || S.view === 5) {
-    // the two switches: only mentioned when they differ from the standard view
-    if (!S.noP0 && S.view === 1) parts.push('incl. P0');
+  if (onView(1)) parts.push(p); // pipelines only apply to map 01
+  if ([1, 2, 5, 6, 16, 25].indexOf(S.view) >= 0) {
+    // the switch: only mentioned when it differs from the standard view
     var std = defaultPx(),
       diff = PROJECT_EXCLUDE.filter(function (e) {
         return !S.clean ? std[e.k] : !!S.px[e.k] !== !!std[e.k];
@@ -231,8 +220,7 @@ function render() {
   });
   var cols = def.cols
     .filter(function (x) {
-      if (def.hideCol && def.hideCol(x)) return false; // e.g. map 01 without the P0 column
-      return !x.opt || colT[x.k];
+        return !x.opt || colT[x.k];
     })
     .map(function (x) {
       // No business: a classification that is not picked stays as an empty gap (the map keeps its size)

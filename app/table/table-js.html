@@ -285,7 +285,7 @@ function closeCell() {
  *  Account listing - left: views, search, Columns; right, far away: "check to export", Excel, PDF.
  *  Stay in touch policy - only the views and the search. */
 function listBlock(meta, closable) {
-  if (S.listView === 'tp' && S.view !== 1) S.listView = 'list'; // Touchpoints only exists on Current pipeline
+  if (S.listView === 'tp' && !tpOnView()) S.listView = 'list'; // Touchpoints: Current pipeline / Current demand only
   return (
     '<div class="inl" id="inl"><div class="inh"><div><h2 id="gCount"></h2><div class="meta">' +
     esc(meta) +
@@ -299,7 +299,7 @@ function listBlock(meta, closable) {
     (S.listView === 'touch' ? 'on' : '') +
     '" onclick="setListView(\'touch\')">Stay in touch policy</button>' +
     // Touchpoints: Current pipeline only (touch/touchpoints-js)
-    (S.view === 1
+    (tpOnView()
       ? '<button class="' + (S.listView === 'tp' ? 'on' : '') + '" onclick="setListView(\'tp\')">Touchpoints</button>'
       : '') +
     '</div>' +
@@ -319,6 +319,11 @@ function listBlock(meta, closable) {
       : '<span id="dtLeg"></span>') +
     '</div></div><div class="tw" id="tw"></div><div class="hpop" id="hpop"></div><div class="hpop cpop" id="cpop"></div></div>'
   );
+}
+
+/** The Touchpoints view exists on 01 Current pipeline and 06 Current demand (open projects). */
+function tpOnView() {
+  return onView(1) || onView(6);
 }
 
 /** A toggle "chip" (a small switch + label) for the list tools. fn = the function called with true / false. */
@@ -341,6 +346,7 @@ function chip(label, on, fn, title) {
 /** Account listing (the table) or Stay in touch policy (weeks + touchpoints, touch/touch-js). */
 function setListView(v) {
   S.listView = v;
+  tpReset(); // opened projects close again when you switch views
   var inl = document.getElementById('inl');
   if (!inl) return;
   // draw the block again (the tools differ per view), keeping the title and meta
@@ -397,7 +403,7 @@ function renderList() {
   if (leg) leg.innerHTML = '';
   var c = document.getElementById('gCount');
   if (c) c.textContent = list.length.toLocaleString('en-GB') + ' account' + (list.length === 1 ? '' : 's');
-  if (S.listView === 'tp' && S.view !== 1) S.listView = 'list'; // Touchpoints only exists on Current pipeline
+  if (S.listView === 'tp' && !tpOnView()) S.listView = 'list'; // Touchpoints: Current pipeline / Current demand only
   if (S.listView === 'touch') return renderStay(box, list); // Stay in touch policy (touch/touch-js)
   if (S.listView === 'tp') return renderTpTab(box, list); // Touchpoints (touch/touchpoints-js)
   var h =

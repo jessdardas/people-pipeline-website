@@ -56,7 +56,7 @@ var MAPS = {
     title: 'Current pipeline',
     // an account whose open projects are ALL left out ("Without P0" / "Real projects only") leaves the map
     filter: function (a) {
-      return a.cls === 'current pipeline' && (!a.open.length || keptOpen(a).length > 0);
+      return a.cls === 'current pipeline' && !isDemand(a) && (!a.open.length || keptOpen(a).length > 0);
     },
     x: 'Phase of open projects',
     y: 'Account category',
@@ -68,10 +68,6 @@ var MAPS = {
       { k: 'noopen', t: 'No open project', opt: 1 }
     ]),
     rows: CATEGORY_ROWS,
-    // "Without P0" switch on: no P0 column at all
-    hideCol: function (c) {
-      return S.noP0 && c.k === P0_PHASE;
-    },
     // an account goes in EVERY phase column where it has an open project (once per phase); its I.N.
     // shown I.N. / intercompany / excluded-from-pipeline / internal-owner projects (INTERNAL_KINDS) go in "other";
     // no open project at all = "No open project".
@@ -175,14 +171,59 @@ var MAPS = {
   }
 };
 
+// 06 Current demand: the current pipeline accounts the file marks as demand (CURRENT_DEMAND in core/config-js) - the
+// same layout as 01 Current pipeline (category × phase of the open projects)
+MAPS[6] = Object.assign({}, MAPS[1], {
+  title: 'Current demand',
+  filter: function (a) {
+    return isDemand(a) && (!a.open.length || keptOpen(a).length > 0);
+  }
+});
+
+/** Is the account current demand? (CURRENT_DEMAND in core/config-js) */
+function isDemand(a) {
+  return CURRENT_DEMAND(a);
+}
+
+// Two maps shown together (pick both cards): they share their layout, so their accounts go in one map.
+//   16 = 01 Current pipeline + 06 Current demand (same rows and columns)
+//   25 = 02 Past pipeline + 05 Past clients (same rows; the columns of both: 0–6 months … 4+ years)
+MAPS[16] = Object.assign({}, MAPS[1], {
+  title: 'Current pipeline + Current demand',
+  parts: [1, 6],
+  filter: function (a) {
+    return MAPS[1].filter(a) || MAPS[6].filter(a);
+  }
+});
+MAPS[25] = Object.assign({}, MAPS[2], {
+  title: 'Past pipeline + Past clients',
+  parts: [2, 5],
+  filter: function (a) {
+    return MAPS[2].filter(a) || MAPS[5].filter(a);
+  },
+  cols: MAPS[2].cols
+    .filter(function (c) {
+      return c.k !== 'n';
+    })
+    .concat(MAPS[5].cols, [{ k: 'n', t: 'problematic', opt: 1 }]),
+  place: function (a) {
+    return MAPS[2].filter(a) ? MAPS[2].place(a) : MAPS[5].place(a);
+  }
+});
+
+/** Is map n on screen (alone, or as part of a combined map)? */
+function onView(n) {
+  return S.view === n || (MAPS[S.view] && (MAPS[S.view].parts || []).indexOf(n) >= 0);
+}
+
 /** Where an account goes on a map: a list of [row, column] (more than one on map 01 with "All projects"). */
 function placesOf(def, a) {
   return def.places ? def.places(a) : [def.place(a)];
 }
 
-/** The map an account is on: 01, 02, 05 (Business) or 03 (No business); 4 = on none of them. */
+/** The map an account is on: 01, 06, 02, 05 (Business) or 03 (No business); 4 = on none of them. */
 function viewOf(a) {
-  var order = [1, 2, 5, 3];
+  var order = [1, 6, 2, 5, 3];
   for (var i = 0; i < order.length; i++) if (MAPS[order[i]].filter(a)) return order[i];
   return 4;
 }

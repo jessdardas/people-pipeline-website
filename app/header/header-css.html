@@ -369,7 +369,7 @@
 .biz button,
 .mcard {
   border: 1px solid var(--line);
-  border-radius: 2px;
+  border-radius: 6px; /* small rounded corners */
   background: var(--surface);
   color: var(--text-faint);
   transition:
@@ -528,5 +528,8 @@
 }
 .owners.lvl4 .olbl {
   margin-right: -4px; /* cancels the row gap, so the first user lines up with the first service unit */
+}
+.maps .mgap {
+  width: 14px; /* space between the pairs (Current pipeline / demand | Past pipeline / clients) */
 }
 </style>

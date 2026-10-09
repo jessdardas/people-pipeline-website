@@ -250,11 +250,19 @@ function tpProjects(list) {
   return out;
 }
 
-/** Open / close a project's table (click on its row). */
-function tpToggle(id) {
-  if (S.tpOpenP[id]) delete S.tpOpenP[id];
-  else S.tpOpenP[id] = 1;
+/** Open / close a project's table (click on its row). The Touchpoints view and the account details each keep
+ *  their own opened projects (S.tpOpenP / S.tpOpenD), so one never opens rows in the other. */
+function tpToggle(id, ctx) {
+  var o = ctx === 'det' ? S.tpOpenD : S.tpOpenP;
+  if (o[id]) delete o[id];
+  else o[id] = 1;
   tpRefresh();
+}
+
+/** Close every opened project of the Touchpoints view and forget the picked phases (the standard view). */
+function tpReset() {
+  S.tpOpenP = {};
+  S.tpPh = {};
 }
 
 /** The accounts of a project, one under the other: "Account | Category". */
@@ -298,17 +306,20 @@ function renderTpTab(box, list) {
 
 /** The project table (Touchpoints view and account details): # | Project | Phase | Accounts; a click on a project
  *  opens its accounts × touchpoints table right under it. */
-function tpProjTable(prj) {
+function tpProjTable(prj, ctx) {
+  var opened = ctx === 'det' ? S.tpOpenD : S.tpOpenP;
   var h =
     '<div class="tw tpw2"><table class="tb tpcomp"><thead><tr><th class="cnt">#</th><th class="pj">Project</th><th class="ph">Phase</th><th class="pa">Accounts</th></tr></thead><tbody>';
   prj.forEach(function (x, n) {
-    var open = !!S.tpOpenP[x.id],
+    var open = !!opened[x.id],
       jsId = esc(x.id).replace(/'/g, '&#39;');
     h +=
       '<tr class="tpr' +
       (open ? ' open' : '') +
       '" onclick="tpToggle(\'' +
       jsId +
+      "','" +
+      (ctx || '') +
       '\')" title="Click to ' +
       (open ? 'close' : 'open') +
       ' the accounts × touchpoints table"><td class="cnt">' +
@@ -403,12 +414,13 @@ function accProjects(a) {
 
 /** The Projects section of the details panel (drawn into #dPrj so it can be redrawn on its own). */
 function tpAccountHtml(a) {
+  S.tpOpenD = {}; // a newly opened account starts with all its projects closed
   return '<div id="dPrj" data-i="' + a.i + '">' + tpAccountInner(a) + '</div>';
 }
 
 function tpAccountInner(a) {
   var list = accProjects(a);
-  return list.length ? tpLegendHtml() + tpProjTable(list) : '<p class="meta">No projects.</p>';
+  return list.length ? tpLegendHtml() + tpProjTable(list, 'det') : '<p class="meta">No projects.</p>';
 }
 
 /** Redraws the Projects section of the open account details (after opening a project or picking a phase). */

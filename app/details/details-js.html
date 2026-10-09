@@ -466,13 +466,10 @@ function openDetail(i) {
   // to tick its touchpoints per account (touch/touchpoints-js)
   h += '<h3>Projects (' + accProjects(a).length + ')</h3>' + tpAccountHtml(a);
   h += '<h3>Social media (' + a.social.length + ')</h3>' + groupTables(a.social, a);
-  // touchpoints (read-only: last site visit, Pub 1, Pub 2 …) + the account's activities (no tasks), see touch/touch-js
+  // publications (read-only: Pub 1, Pub 2 … from the contact persons) + the account's activities (no tasks)
   h +=
-    '<h3>Touchpoints</h3><div class="kv"><div>Last site visit</div><div>' +
-    tpBox(a.tp.visit) +
-    ' ' +
-    esc(a.tp.visitDate ? fmtXl(a.tp.visitDate) : a.tp.visit ? a.tp.visitWhy : 'none yet') +
-    '</div>' +
+    '<h3>Publications</h3><div class="kv">' +
+    (pubNums().length ? '' : '<div>Publications</div><div>none in the file yet</div>') +
     pubNums()
       .map(function (n) {
         var l = a.tp.pub[n] || [];

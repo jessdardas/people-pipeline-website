@@ -178,24 +178,51 @@ function renderUnits() {
       }).join('') +
       '<div class="pm-f"><button class="lnk" onclick="setPipe(null)">All pipelines</button><button class="lnk" onclick="S.pm=false;renderUnits()">Close</button></div></div>';
   // pipelines only apply to map 01 (the other maps always show every pipeline)
-  document.getElementById('pipes').innerHTML = S.view === 1 ? '<span class="pw">' + p + '</span>' : '';
+  document.getElementById('pipes').innerHTML = onView(1) ? '<span class="pw">' + p + '</span>' : '';
 
   renderNav();
 }
 
 /* ---------- levels 1 + 2: BUSINESS | NO BUSINESS, then the maps of that choice ----------
-   BUSINESS    → map cards 01 Current pipeline, 02 Past pipeline, 05 Past clients (one at a time)
+   BUSINESS    → map cards 01 Current pipeline, 06 Current demand, 02 Past pipeline, 05 Past clients; the two of a pair
+                 (Current pipeline + Current demand, Past pipeline + Past clients) can be picked together: one map
    NO BUSINESS → map 03, with a card per classification (Past demand, Met in, Met out, Contacted, Not contacted):
                  click to pick one or several (S.nbCls; none = all); the map keeps its size */
 var BIZ = [
-  { k: 'business', t: 'Business', views: [1, 2, 5] },
+  { k: 'business', t: 'Business', views: [1, 6, 2, 5], also: [16, 25] },
   { k: 'nobusiness', t: 'No business', views: [3] }
 ];
 
 function bizOf(view) {
   return BIZ.filter(function (b) {
-    return b.views.indexOf(view) >= 0;
+    return b.views.indexOf(view) >= 0 || (b.also || []).indexOf(view) >= 0;
   })[0];
+}
+
+// the pairs that can be shown together, and the combined map of each (MAPS[16], MAPS[25] in matrix/maps-js)
+var MAP_PAIR = { 1: 6, 6: 1, 2: 5, 5: 2 };
+var MAP_COMBO = { 1: 16, 6: 16, 2: 25, 5: 25 };
+
+/** The map cards picked now: [S.view], or the two parts of a combined map. */
+function pickedMaps() {
+  return (MAPS[S.view] && MAPS[S.view].parts) || [S.view];
+}
+
+/** A click on a business map card: alone → that map; with its pair already picked → both together in one map;
+ *  a click on one of two picked cards → only the other one stays. */
+function pickMap(i) {
+  var cur = pickedMaps();
+  if (cur.indexOf(i) >= 0) {
+    if (cur.length === 2)
+      setView(
+        cur.filter(function (x) {
+          return x !== i;
+        })[0]
+      );
+    return;
+  }
+  if (cur.length === 1 && MAP_PAIR[i] === cur[0]) return setView(MAP_COMBO[i]);
+  setView(i);
 }
 
 /** Accounts of map v for the current selection (the number on its card). */
@@ -232,12 +259,24 @@ function renderNav() {
     return '<button class="' + (cur === b ? 'on' : '') + '" onclick="setBiz(\'' + b.k + '\')">' + esc(b.t) + '</button>';
   }).join('');
   var h = '';
-  if (cur.k === 'business')
+  if (cur.k === 'business') {
+    var picked = pickedMaps();
     h = cur.views
-      .map(function (i) {
-        return navCard(S.view === i, 'setView(' + i + ')', MAPS[i].title, S.acc.length ? mapCount(i) : 0);
+      .map(function (i, n) {
+        // a small space between the two pairs (Current …, Past …)
+        return (
+          (n === 2 ? '<span class="mgap"></span>' : '') +
+          navCard(
+            picked.indexOf(i) >= 0,
+            'pickMap(' + i + ')',
+            MAPS[i].title,
+            S.acc.length ? mapCount(i) : 0,
+            'Click to show this map; click ' + MAPS[MAP_PAIR[i]].title + ' too to see both together'
+          )
+        );
       })
       .join('');
+  }
   else {
     // No business: one card per classification (Past demand, Met in, Met out, Contacted, Not contacted), each with
     // its accounts counted whatever is picked
@@ -353,6 +392,7 @@ function setView(i) {
 function changed() {
   S.hl = null;
   S.sel = [];
+  tpReset(); // opened projects (Touchpoints) close again: back to the standard view
   S.g = newGrid();
   closePanel();
   closeDrawer();

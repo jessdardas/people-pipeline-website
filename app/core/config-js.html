@@ -104,9 +104,11 @@ var INTERNAL_USERS = /\b(roland|cybel|roger|sam|dany daaboul)/i;
 // patterns that matches a column wins ("project owner" before any other column with "owner" in its name).
 var OWNER_COLS = [/projectowner/, /owner/];
 
-// "Without P0" switch (just above "Real projects only", ON by default): P0 projects are left out on maps 01 and 02
-// (the P0 column disappears; an account whose projects are all P0 leaves the map).
-var P0_PHASE = 'P0';
+// 06 Current demand: in the file these are "current pipeline" accounts with classification_order 2 (they only have
+// P0 projects); an account classified "current demand" counts too. 01 Current pipeline shows the other ones.
+var CURRENT_DEMAND = function (a) {
+  return a.cls === 'current demand' || (a.cls === 'current pipeline' && a.clsOrder === 2);
+};
 
 // Project date used when an account's "last project" date is empty: per project, the first of these columns that is
 // filled in (datein, else actualclosedate).
@@ -229,7 +231,7 @@ var S = {
   pipes: [1], // map 01 opens on Pipeline 1 (empty = all pipelines)
   clean: true, // "Real projects only" switch (maps 01 + 02)
   px: {}, // which PROJECT_EXCLUDE kinds that switch leaves out (filled from their "off" setting in build())
-  noP0: true, // "Without P0" switch (maps 01 + 02)
+  views: [1], // the map cards picked (Current pipeline + Current demand, or Past pipeline + Past clients, together)
   xm: false, // its small menu is open
   nbCls: [], // No business: the classifications picked with the cards (empty = all of them)
   dbFrom: '', // New DB: a date picked for this view only (not saved); '' = the admin date
@@ -244,6 +246,7 @@ var S = {
   wm: null, // Stay in touch policy: the week whose filter menu is open (Monday), or null
   tpTemp: {}, // touchpoints ticked on screen ("projectKey|accountId|touchpointKey" = 1) - temporary, never saved
   tpOpenP: {}, // Touchpoints view: the projects opened (their accounts × touchpoints table shown under them)
+  tpOpenD: {}, // account details: the projects opened there
   tpPh: {}, // Touchpoints view: the phase shown in an opened project's table (standard: its current phase)
   pickMode: false, // "check to export" is ticked: tick boxes in the # column of the account table
   pick: {}, // the accounts ticked for export (account id = 1); kept until "clear" or the page is closed
