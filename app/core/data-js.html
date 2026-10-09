@@ -118,8 +118,8 @@ function build(d) {
     a.id = String(F(a, 'accountid') || '');
     a.name = String(F(a, 'name') == null ? '(no name)' : F(a, 'name'));
     a.lname = a.name.toLowerCase();
-    a.cls = lc(F(a, 'classification')) || 'no classification';
     a.clsOrder = num(F(a, 'classification_order'));
+    a.cls = CLS_RENAME(lc(F(a, 'classification')) || 'no classification', a.clsOrder); // current client / demand
     a.category = lc(F(a, 'category'));
     a.orig = lc(F(a, 'original_category'));
     a.industry = F(a, 'industry') == null ? '' : String(F(a, 'industry')).trim();

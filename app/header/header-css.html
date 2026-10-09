@@ -437,8 +437,12 @@
   gap: 10px 14px;
   border-top: 1px solid var(--soft);
 }
-.bar.lvl3 .pipes {
-  margin-left: auto;
+/* pipeline menu + Filters: together, right after the service units (not at the far right) */
+.bar.lvl3 .barr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 28px;
 }
 .lvlb {
   font-size: 10px;
@@ -530,6 +534,6 @@
   margin-right: -4px; /* cancels the row gap, so the first user lines up with the first service unit */
 }
 .maps .mgap {
-  width: 14px; /* space between the pairs (Current pipeline / demand | Past pipeline / clients) */
+  width: 14px; /* space between the pairs (Current client / demand | Past pipeline / clients) */
 }
 </style>

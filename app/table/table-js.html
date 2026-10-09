@@ -285,7 +285,7 @@ function closeCell() {
  *  Account listing - left: views, search, Columns; right, far away: "check to export", Excel, PDF.
  *  Stay in touch policy - only the views and the search. */
 function listBlock(meta, closable) {
-  if (S.listView === 'tp' && !tpOnView()) S.listView = 'list'; // Touchpoints: Current pipeline / Current demand only
+  if (S.listView === 'tp' && !tpOnView()) S.listView = 'list'; // Touchpoints: Current client / Current demand only
   return (
     '<div class="inl" id="inl"><div class="inh"><div><h2 id="gCount"></h2><div class="meta">' +
     esc(meta) +
@@ -298,7 +298,7 @@ function listBlock(meta, closable) {
     '" onclick="setListView(\'list\')">Account listing</button><button class="' +
     (S.listView === 'touch' ? 'on' : '') +
     '" onclick="setListView(\'touch\')">Stay in touch policy</button>' +
-    // Touchpoints: Current pipeline only (touch/touchpoints-js)
+    // Touchpoints: Current client / Current demand only (touch/touchpoints-js)
     (tpOnView()
       ? '<button class="' + (S.listView === 'tp' ? 'on' : '') + '" onclick="setListView(\'tp\')">Touchpoints</button>'
       : '') +
@@ -321,7 +321,7 @@ function listBlock(meta, closable) {
   );
 }
 
-/** The Touchpoints view exists on 01 Current pipeline and 06 Current demand (open projects). */
+/** The Touchpoints view exists on 01 Current client and 06 Current demand (open projects). */
 function tpOnView() {
   return onView(1) || onView(6);
 }
@@ -403,7 +403,7 @@ function renderList() {
   if (leg) leg.innerHTML = '';
   var c = document.getElementById('gCount');
   if (c) c.textContent = list.length.toLocaleString('en-GB') + ' account' + (list.length === 1 ? '' : 's');
-  if (S.listView === 'tp' && !tpOnView()) S.listView = 'list'; // Touchpoints: Current pipeline / Current demand only
+  if (S.listView === 'tp' && !tpOnView()) S.listView = 'list'; // Touchpoints: Current client / Current demand only
   if (S.listView === 'touch') return renderStay(box, list); // Stay in touch policy (touch/touch-js)
   if (S.listView === 'tp') return renderTpTab(box, list); // Touchpoints (touch/touchpoints-js)
   var h =

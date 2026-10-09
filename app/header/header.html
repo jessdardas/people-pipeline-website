@@ -16,25 +16,27 @@
   Navigation in 4 levels (header/header-js.html):
     1. BUSINESS | NO BUSINESS   (renderNav)      2. the maps of that choice   (renderNav)
     3. service units            (renderUnits)    4. users of the chosen unit(s) (renderOwners)
-  + the Filters button and the two small project switches (Without P0, Real projects only) on the right.
+  + the small "Real projects only" switch on the right; the Filters button sits next to the pipeline menu (level 3).
 -->
 <nav class="nav lvl12">
   <div class="biz" id="biz"></div>
   <div class="maps" id="tabs"></div>
   <div class="navr">
     <div class="sws" id="sws"></div>
+  </div>
+</nav>
+
+<!-- 3. service unit buttons, then - right next to them - the pipeline menu (map 01 only) and the Filters button -->
+<div class="bar lvl3">
+  <span class="lvlb">Service unit</span>
+  <div class="units" id="units"></div>
+  <div class="barr">
+    <div class="pipes" id="pipes"></div>
     <div class="fwrap">
       <div id="fbtn"></div>
       <div class="fpanel" id="fpanel"></div>
     </div>
   </div>
-</nav>
-
-<!-- 3. service unit buttons (left) and the pipeline menu (right, map 01 only) -->
-<div class="bar lvl3">
-  <span class="lvlb">Service unit</span>
-  <div class="units" id="units"></div>
-  <div class="pipes" id="pipes"></div>
 </div>
 
 <!-- 4. users (owners) of the chosen service unit(s) - a hint until a unit is chosen -->

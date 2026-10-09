@@ -326,7 +326,8 @@ function actsHtml(a) {
     var d = x.date != null ? new Date((x.date - 25569) * 864e5) : null,
       meta = [],
       long = [];
-    more.forEach(function (i) {
+    // emails (ACT_BRIEF): only date, type and subject
+    (ACT_BRIEF.test(x.type) ? [] : more).forEach(function (i) {
       var v = cv(x.e.s, i, x.e.j);
       if (v == null || v === '') return;
       var txt = fmtVal(s.cols[i].h, v, a, true);

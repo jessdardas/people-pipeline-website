@@ -1,7 +1,7 @@
 <script>
 /*
  * TOUCHPOINTS - website only. ONE implementation, used in:
- *   1. the "Touchpoints" view of the list under map 01 Current pipeline (renderTpTab): # | Project | Phase | Accounts,
+ *   1. the "Touchpoints" view of the list under map 01 Current client (renderTpTab): # | Project | Phase | Accounts,
  *      one row per unique open project, with the number of projects in the list title.
  *      Click a project: a table opens right under it - its accounts as rows, the touchpoints of a phase as columns
  *      (standard: the current phase; the phase buttons show the others), a tick box per account.
@@ -229,7 +229,7 @@ function tpRefresh() {
   renderDetProjects();
 }
 
-/* ---------- 1. the Touchpoints view (Current pipeline): # | Project | Phase | Accounts ---------- */
+/* ---------- 1. the Touchpoints view (Current client / demand): # | Project | Phase | Accounts ---------- */
 
 /** The unique open real projects of the listed accounts, A→Z. */
 function tpProjects(list) {
@@ -304,12 +304,12 @@ function renderTpTab(box, list) {
   box.innerHTML = h;
 }
 
-/** The project table (Touchpoints view and account details): # | Project | Phase | Accounts; a click on a project
- *  opens its accounts × touchpoints table right under it. */
+/** The project table (Touchpoints view and account details): # | Project | Phase | Owner | Accounts; a click on a
+ *  project opens its accounts × touchpoints table right under it. Owner = the project owner (OwnerName). */
 function tpProjTable(prj, ctx) {
   var opened = ctx === 'det' ? S.tpOpenD : S.tpOpenP;
   var h =
-    '<div class="tw tpw2"><table class="tb tpcomp"><thead><tr><th class="cnt">#</th><th class="pj">Project</th><th class="ph">Phase</th><th class="pa">Accounts</th></tr></thead><tbody>';
+    '<div class="tw tpw2"><table class="tb tpcomp"><thead><tr><th class="cnt">#</th><th class="pj">Project</th><th class="ph">Phase</th><th class="po">Owner</th><th class="pa">Accounts</th></tr></thead><tbody>';
   prj.forEach(function (x, n) {
     var open = !!opened[x.id],
       jsId = esc(x.id).replace(/'/g, '&#39;');
@@ -332,10 +332,12 @@ function tpProjTable(prj, ctx) {
       (x.open ? '' : ' <span class="meta">closed</span>') +
       '</td><td class="ph"><span class="phb">' +
       esc(phaseLabel(x.ph)) +
-      '</span></td><td class="pa">' +
+      '</span></td><td class="po">' +
+      esc(cap(projOwner(x.o.p)) || '—') +
+      '</td><td class="pa">' +
       tpAccList(x) +
       '</td></tr>';
-    if (open) h += '<tr class="tpx"><td colspan="4">' + tpOpenHtml(x) + '</td></tr>';
+    if (open) h += '<tr class="tpx"><td colspan="5">' + tpOpenHtml(x) + '</td></tr>';
   });
   return h + '</tbody></table></div>';
 }

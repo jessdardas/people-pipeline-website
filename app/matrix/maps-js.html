@@ -53,10 +53,10 @@ function pastCol(a) {
 
 var MAPS = {
   1: {
-    title: 'Current pipeline',
-    // an account whose open projects are ALL left out ("Without P0" / "Real projects only") leaves the map
+    title: 'Current client',
+    // the accounts classified current client; one whose open projects are ALL left out ("Real projects only") leaves
     filter: function (a) {
-      return a.cls === 'current pipeline' && !isDemand(a) && (!a.open.length || keptOpen(a).length > 0);
+      return a.cls === 'current client' && (!a.open.length || keptOpen(a).length > 0);
     },
     x: 'Phase of open projects',
     y: 'Account category',
@@ -171,8 +171,8 @@ var MAPS = {
   }
 };
 
-// 06 Current demand: the current pipeline accounts the file marks as demand (CURRENT_DEMAND in core/config-js) - the
-// same layout as 01 Current pipeline (category × phase of the open projects)
+// 06 Current demand: the accounts classified current demand (CURRENT_DEMAND in core/config-js) - the same layout as
+// 01 Current client (category × phase of the open projects)
 MAPS[6] = Object.assign({}, MAPS[1], {
   title: 'Current demand',
   filter: function (a) {
@@ -186,10 +186,10 @@ function isDemand(a) {
 }
 
 // Two maps shown together (pick both cards): they share their layout, so their accounts go in one map.
-//   16 = 01 Current pipeline + 06 Current demand (same rows and columns)
+//   16 = 01 Current client + 06 Current demand (same rows and columns)
 //   25 = 02 Past pipeline + 05 Past clients (same rows; the columns of both: 0–6 months … 4+ years)
 MAPS[16] = Object.assign({}, MAPS[1], {
-  title: 'Current pipeline + Current demand',
+  title: 'Current client + Current demand',
   parts: [1, 6],
   filter: function (a) {
     return MAPS[1].filter(a) || MAPS[6].filter(a);
