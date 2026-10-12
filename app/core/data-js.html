@@ -89,6 +89,10 @@ function build(d) {
     }
   });
   S.byId = {};
+  // projects sheets: is there a project category column? (Recurrent counts only "new" projects when there is)
+  S.hasCat = S.sheets.some(function (s) {
+    return s.role === 'projects' && projCatCol(s) >= 0;
+  });
   // "last validated": the validation end date column (validation_task_enddate), else any date column about validation
   var vk = Object.keys(FIELD);
   S.validKey =
@@ -158,6 +162,7 @@ function build(d) {
     a.contacts = [];
     a.acts = []; // rows of the "activities" sheet (Touchpoints view)
     a.lists = [];
+    a.classA = false; // listed in the "class A" sheet (Class A map)
     Object.keys(a.L).forEach(function (si) {
       var s = S.sheets[si];
       a.L[si].forEach(function (j) {
@@ -166,6 +171,7 @@ function build(d) {
         } else if (s.role === 'projects') a.projects.push({ s: +si, j: j });
         else if (s.role === 'contacts') a.contacts.push({ s: +si, j: j });
         else if (s.role === 'activities') a.acts.push({ s: +si, j: j });
+        else if (s.role === 'classa') a.classA = true;
         else a.lists.push({ s: +si, j: j });
       });
     });
@@ -177,6 +183,8 @@ function build(d) {
       o.name = nm; // project name
       o.id = String(cellBy(p.s, p.j, 'opportunityid') || nm || p.s + ':' + p.j); // the project key (opportunityid)
       o.p = p; // the project row
+      o.cat = projCat(p); // project category (Recurrent: "new")
+      o.lost = RECURRENT.lost.test(projState(p));
       PROJECT_EXCLUDE.forEach(function (e) {
         o[e.k] = e.name
           ? e.name.test(nm) || e.name.test(a.name)
@@ -564,6 +572,64 @@ function lastProjectDays(a) {
   if (!a.lpFromProj) return a.lastProject;
   var d = latestDate(keptProjects(a, false));
   return d == null ? null : Math.max(0, Math.round(todaySerial() - d));
+}
+
+/** The project's status text ('' when none): statecodename, else status / statecode. */
+function projState(p) {
+  var st = cellBy(p.s, p.j, 'statecodename');
+  if (st == null) st = cellBy(p.s, p.j, 'status');
+  if (st == null) st = cellBy(p.s, p.j, 'statecode');
+  return st == null ? '' : String(st).trim();
+}
+
+/** The project category column of a projects sheet (-1 = none): a column named like "category" / "project category",
+ *  else the column right after the project name when some of its values say "new". */
+function projCatCol(s) {
+  if (s._cc !== undefined) return s._cc;
+  var c = s.hk.indexOf('projectcategory');
+  if (c < 0) c = s.hk.indexOf('category');
+  if (c < 0)
+    s.hk.some(function (h, i) {
+      if (/categ/.test(h)) return (c = i), true;
+    });
+  if (c < 0) {
+    var nc = nameCol(s);
+    if (nc >= 0 && nc + 1 < s.cols.length && !/id$|date|phase|state|status/.test(s.hk[nc + 1])) {
+      for (var j = 0; j < s.n; j++) {
+        var v = cv(s.si, nc + 1, j);
+        if (v != null && RECURRENT.cat.test(String(v).trim())) {
+          c = nc + 1;
+          break;
+        }
+      }
+    }
+  }
+  return (s._cc = c);
+}
+
+/** The project's category in lower case ('' when none). */
+function projCat(p) {
+  var c = projCatCol(S.sheets[p.s]),
+    v = c < 0 ? null : cv(p.s, c, p.j);
+  return v == null ? '' : String(v).trim().toLowerCase();
+}
+
+/** Recurrent: how many of the account's projects count (P1 or later, category "new", not lost, kept by
+ *  "Real projects only") - see RECURRENT in core/config-js. */
+function recCount(a) {
+  return a.pj.filter(function (o) {
+    return (
+      o.ph !== P0_PHASE &&
+      PHASES.indexOf(o.ph) >= 0 &&
+      !o.lost &&
+      (!S.hasCat || RECURRENT.cat.test(o.cat)) &&
+      !leftOut(o, false)
+    );
+  }).length;
+}
+
+function isRecurrent(a) {
+  return recCount(a) >= S.recN;
 }
 
 /** Is this project open? (status column statecodename / status / state; no such column = open) */

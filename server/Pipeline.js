@@ -60,6 +60,8 @@ function sheetRole_(name, hk) {
     return hk.indexOf(c) >= 0;
   };
   const n = hKey_(name);
+  // the "class A" sheet (website: Class A map): only account ids, one row per Class A account
+  if (n === 'classa') return 'classa';
   if (has('opportunityid')) return 'projects';
   if (has('contactid') || has('contact') || has('contactperson') || /^contact/.test(n) || /query5$/.test(n)) return 'contacts';
   if (hk.some(function (h) { return /platform/.test(h); })) return 'social'; // prettier-ignore
@@ -192,7 +194,7 @@ function buildFromSheets_(sheetList, source) {
     s.rows.forEach(function (r) {
       const a = accIndex[normId_(r[k])];
       if (a === undefined) return unmatched.push(normId_(r[k]));
-      if (!r.some(function (v, j) { return j !== k && v !== '' && v != null && v !== 'NULL'; })) return empty++; // prettier-ignore
+      if (role !== 'classa' && !r.some(function (v, j) { return j !== k && v !== '' && v != null && v !== 'NULL'; })) return empty++; // prettier-ignore
       const sig = r.join('\u0001'); // the same row twice (joins in the query)
       if (seen[sig]) return dups++;
       seen[sig] = 1;

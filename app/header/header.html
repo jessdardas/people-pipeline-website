@@ -14,8 +14,9 @@
 
 <!--
   Navigation in 4 levels (header/header-js.html):
-    1. BUSINESS | NO BUSINESS   (renderNav)      2. the maps of that choice   (renderNav)
-    3. service units            (renderUnits)    4. users of the chosen unit(s) (renderOwners)
+    1. BUSINESS | NO BUSINESS · Class A (renderNav)  2. the maps of that choice (+ Recurrent) (renderNav)
+    3. service units            (renderUnits)    4. users of the chosen unit(s) (renderOwners, shown with a click
+                                                    on the "Service unit" label)
   + the small "Real projects only" switch on the right; the Filters button sits next to the pipeline menu (level 3).
 -->
 <nav class="nav lvl12">
@@ -28,7 +29,8 @@
 
 <!-- 3. service unit buttons, then - right next to them - the pipeline menu (map 01 only) and the Filters button -->
 <div class="bar lvl3">
-  <span class="lvlb">Service unit</span>
+  <!-- a click on the label shows / hides the users row (level 4) -->
+  <button class="lvlb" id="lvlb" onclick="toggleUsers()">Service unit</button>
   <div class="units" id="units"></div>
   <div class="barr">
     <div class="pipes" id="pipes"></div>
@@ -39,5 +41,5 @@
   </div>
 </div>
 
-<!-- 4. users (owners) of the chosen service unit(s) - a hint until a unit is chosen -->
+<!-- 4. users (owners) of the chosen service unit(s) - hidden until the "Service unit" label is clicked -->
 <div class="owners lvl4" id="owners"></div>

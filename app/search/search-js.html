@@ -81,9 +81,13 @@ function goTo(i) {
     S.db = 'pipeline';
     adj.push('New DB → People pipeline');
   }
-  if (loc.v === 3 && S.nbCls.length && S.nbCls.indexOf(a.cls) < 0) {
+  if (loc.v === 3 && S.nbCls.length && S.nbCls.indexOf(nbMap(a.cls)) < 0) {
     S.nbCls = [];
-    adj.push('classification');
+    adj.push('No business map');
+  }
+  if (S.recOnly && loc.v !== 3 && !isRecurrent(a)) {
+    S.recOnly = false;
+    adj.push('recurrent only');
   }
   if (loc.v === 1 && S.pipes.length && S.pipes.indexOf(a.pipe) < 0) {
     if (a.pipe) S.pipes.push(a.pipe);

@@ -51,7 +51,23 @@ function setDb(db) {
 
 /** Owners of the chosen service unit(s): pick one or more; nothing picked = all owners. */
 function renderOwners() {
-  var box = document.getElementById('owners');
+  var box = document.getElementById('owners'),
+    lb = document.getElementById('lvlb');
+  if (lb) {
+    lb.classList.toggle('open', S.showUsers);
+    lb.innerHTML =
+      'Service unit <i>' +
+      (S.showUsers ? '▾' : '▸') +
+      '</i>' +
+      (S.owners.length && !S.showUsers ? '<small>' + S.owners.length + (S.owners.length === 1 ? ' user' : ' users') + '</small>' : '');
+    lb.title = S.showUsers ? 'Hide the users' : 'Show the users of the service unit(s)';
+  }
+  var bar = document.querySelector('.bar.lvl3');
+  if (bar) bar.classList.toggle('nousers', !S.showUsers);
+  if (!S.showUsers) {
+    box.style.display = 'none';
+    return;
+  }
   if (!S.units.length) {
     box.innerHTML = '<span class="olbl">User</span><span class="ohint">Pick a service unit above to see its users</span>';
     box.style.display = '';
@@ -183,14 +199,17 @@ function renderUnits() {
   renderNav();
 }
 
-/* ---------- levels 1 + 2: BUSINESS | NO BUSINESS, then the maps of that choice ----------
-   BUSINESS    → map cards 01 Current client, 06 Current demand, 02 Past pipeline, 05 Past clients; the two of a pair
-                 (Current client + Current demand, Past pipeline + Past clients) can be picked together: one map
-   NO BUSINESS → map 03, with a card per classification (Past demand, Met in, Met out, Contacted, Not contacted):
-                 click to pick one or several (S.nbCls; none = all); the map keeps its size */
+/* ---------- levels 1 + 2: BUSINESS | NO BUSINESS (· Class A), then the maps of that choice ----------
+   BUSINESS    → map cards 01 Current client, 06 Current demand, 02 Past clients, 05 Past business; the two of a pair
+                 (Current client + Current demand, Past clients + Past business) can be picked together: one map.
+                 Next to them the "Recurrent" view button (map 07) with its number of projects (S.recN, editable)
+   NO BUSINESS → map 03, with 3 map cards (NB_MAPS): Past demand, Met / contacted, New: click to pick one or several
+                 (S.nbCls; none = all); the map keeps its size
+   CLASS A     → map 08 (the accounts of the "class A" sheet, from any map) - a quieter button after the two */
 var BIZ = [
-  { k: 'business', t: 'Business', views: [1, 6, 2, 5], also: [16, 25] },
-  { k: 'nobusiness', t: 'No business', views: [3] }
+  { k: 'business', t: 'Business', views: [1, 6, 2, 5], also: [16, 25, 7] },
+  { k: 'nobusiness', t: 'No business', views: [3] },
+  { k: 'classa', t: 'Class A', views: [8], minor: 1 }
 ];
 
 function bizOf(view) {
@@ -228,7 +247,7 @@ function pickMap(i) {
 /** Accounts of map v for the current selection (the number on its card). */
 function mapCount(v, extra) {
   var keep = S.view;
-  S.view = v; // pass() depends on the map (pipelines only count on map 01)
+  S.view = v; // pass() depends on the map (pipelines only count on map 01, "Recurrent only" on Business maps)
   var n = S.acc.filter(function (a) {
     return MAPS[v].filter(a) && pass(a) && (!extra || extra(a));
   }).length;
@@ -256,7 +275,20 @@ function navCard(on, onclick, name, n, title) {
 function renderNav() {
   var cur = bizOf(S.view) || BIZ[0];
   document.getElementById('biz').innerHTML = BIZ.map(function (b) {
-    return '<button class="' + (cur === b ? 'on' : '') + '" onclick="setBiz(\'' + b.k + '\')">' + esc(b.t) + '</button>';
+    return (
+      (b.minor ? '<span class="bsep"></span>' : '') +
+      '<button class="' +
+      (cur === b ? 'on' : '') +
+      (b.minor ? ' minor' : '') +
+      '" onclick="setBiz(\'' +
+      b.k +
+      '\')"' +
+      (b.minor ? ' title="The accounts of the &quot;class A&quot; sheet, from any map"' : '') +
+      '>' +
+      (b.minor ? '<i class="ca">A</i>' : '') +
+      esc(b.t) +
+      '</button>'
+    );
   }).join('');
   var h = '';
   if (cur.k === 'business') {
@@ -276,38 +308,81 @@ function renderNav() {
         );
       })
       .join('');
-  }
-  else {
-    // No business: one card per classification (Past demand, Met in, Met out, Contacted, Not contacted), each with
-    // its accounts counted whatever is picked
+    // Recurrent: a view (not a map card) - a plain button + its number of projects, which can be changed
+    h +=
+      '<span class="recv">' +
+      '<button class="rbtn' +
+      (S.view === 7 ? ' on' : '') +
+      '" onclick="setView(7)" title="Accounts with ' +
+      S.recN +
+      ' or more new projects in P1 or later (not lost)">Recurrent <b>' +
+      (S.acc.length ? mapCount(7) : 0).toLocaleString('en-GB') +
+      '</b></button>' +
+      '<span class="rcol"><label class="rn" title="Least number of new projects in P1 or later (not P0, not lost)' +
+      (S.acc.length && !S.hasCat ? ' - no project category column found: every project counts' : '') +
+      '">≥ <input type="number" min="1" max="99" value="' +
+      S.recN +
+      '" onchange="setRecN(this.value)"> new projects P1+</label>' +
+      // "Recurrent only" on the Business maps (01, 06, 02, 05 and their pairs)
+      '<span class="rp"><label class="sw" title="On the maps: only the recurrent accounts"><input type="checkbox" ' +
+      (S.recOnly ? 'checked' : '') +
+      ' onchange="setRecOnly(this.checked)"' +
+      (S.view === 7 ? ' disabled' : '') +
+      '><i></i>Recurrent only on maps</label></span></span></span>';
+  } else if (cur.k === 'nobusiness') {
+    // No business: one card per map (Past demand, Met / contacted, New), each with its accounts counted whatever
+    // is picked
     var keep = S.nbCls;
     S.nbCls = [];
-    h = MAPS[3].cols
-      .map(function (c) {
-        var n = S.acc.length
-          ? mapCount(3, function (a) {
-              return a.cls === c.k;
-            })
-          : 0;
-        return navCard(!keep.length || keep.indexOf(c.k) >= 0, 'setNbCls(\'' + c.k + '\')', c.t, n, 'Click to show only / add / remove this classification');
-      })
-      .join('');
+    h = NB_MAPS.map(function (m) {
+      var n = S.acc.length
+        ? mapCount(3, function (a) {
+            return m.cls.indexOf(a.cls) >= 0;
+          })
+        : 0;
+      return navCard(
+        !keep.length || keep.indexOf(m.k) >= 0,
+        "setNbCls('" + m.k + "')",
+        m.t,
+        n,
+        m.cls.map(cap).join(', ') + ' · click to show only / add / remove this map'
+      );
+    }).join('');
     S.nbCls = keep;
+  } else {
+    var any = S.acc.some(function (a) {
+      return a.classA;
+    });
+    h =
+      navCard(true, 'setView(8)', 'Class A', S.acc.length ? mapCount(8) : 0, 'The accounts of the "class A" sheet') +
+      (S.acc.length && !any ? '<span class="nhint">No &ldquo;class A&rdquo; sheet in the Excel file yet: add a sheet named <b>class A</b> with an <b>accountid</b> column</span>' : '');
   }
   document.getElementById('tabs').innerHTML = h;
   renderSwitches();
 }
 
-/** BUSINESS → map 01 (or stays on 02 / 05); NO BUSINESS → map 03. */
+/** BUSINESS → map 01 (or stays on 02 / 05 / Recurrent); NO BUSINESS → map 03; CLASS A → map 08. */
 function setBiz(k) {
   var b = BIZ.filter(function (x) {
     return x.k === k;
   })[0];
-  if (b.views.indexOf(S.view) < 0) setView(b.views[0]);
+  if (bizOf(S.view) !== b) setView(b.views[0]);
 }
 
-/** No business: all classifications shown (S.nbCls empty) → a click shows only that one; then a click adds / removes
- *  one. Removing the last one, or picking all of them, shows all again. */
+/** Recurrent: the least number of projects (typed in the box next to the Recurrent button). */
+function setRecN(v) {
+  v = Math.round(+v);
+  S.recN = v >= 1 ? Math.min(v, 99) : RECURRENT.min;
+  changed();
+}
+
+function setRecOnly(on) {
+  S.recOnly = on;
+  changed();
+}
+
+/** No business: all maps shown (S.nbCls empty) → a click shows only that one; then a click adds / removes one.
+ *  Removing the last one, or picking all of them, shows all again. */
 function setNbCls(k) {
   if (!S.nbCls.length) S.nbCls = [k];
   else {
@@ -315,9 +390,15 @@ function setNbCls(k) {
     if (i >= 0) S.nbCls.splice(i, 1);
     else S.nbCls.push(k);
   }
-  if (S.nbCls.length === MAPS[3].cols.length) S.nbCls = [];
+  if (S.nbCls.length === NB_MAPS.length) S.nbCls = [];
   if (S.view !== 3) S.view = 3;
   changed();
+}
+
+/** The users row shows / hides only with a click on the "Service unit" label (never by picking a service unit). */
+function toggleUsers() {
+  S.showUsers = !S.showUsers;
+  renderOwners();
 }
 
 function setUnit(u) {

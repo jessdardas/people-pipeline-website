@@ -105,6 +105,8 @@ function pass(a, skip) {
   // pipelines only count on map 01; the other maps always show every pipeline
   if (skip !== 'pipes' && onView(1) && MAPS[1].filter(a) && S.pipes.length && S.pipes.indexOf(a.pipe) < 0) return false;
   if (skip !== 'db' && !inDb(a)) return false;
+  // "Recurrent only" switch: on the Business maps, only the recurrent accounts
+  if (skip !== 'rec' && S.recOnly && BIZ_MAPS.indexOf(S.view) >= 0 && !isRecurrent(a)) return false;
   for (var i = 0; i < FDEF.length; i++) {
     var f = FDEF[i];
     if (f.k === skip) continue;

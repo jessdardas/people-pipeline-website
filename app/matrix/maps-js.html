@@ -33,7 +33,7 @@ var CATEGORY_ROWS = [
   { k: 'other', t: 'Other', s: 'incl. lighting designer / dealer' }
 ];
 
-// last meeting rows (maps 02 Past pipeline and 05 Past clients)
+// last meeting rows (maps 02 Past clients and 05 Past business)
 var MEETING_ROWS = [
   { k: 0, t: '0–3 months' },
   { k: 1, t: '3–6 months' },
@@ -92,8 +92,8 @@ var MAPS = {
     }
   },
   2: {
-    title: 'Past pipeline',
-    // past clients whose last project is less than 18 months ago (18+ months → map 05 Past clients);
+    title: 'Past clients',
+    // past clients whose last project is less than 18 months ago (18+ months → map 05 Past business);
     // an account whose projects are ALL left out by "Real projects only" leaves the map
     filter: function (a) {
       return a.cls === 'past client' && pastCol(a) !== 3 && (!a.pj.length || keptProjects(a, false).length > 0);
@@ -112,7 +112,7 @@ var MAPS = {
     }
   },
   5: {
-    title: 'Past clients',
+    title: 'Past business',
     // past clients whose last project is 18+ months ago, in ranges like map 02:
     // 1.5–2 years (18–24 months), 2–3 years, 3–4 years, 4+ years
     filter: function (a) {
@@ -137,14 +137,24 @@ var MAPS = {
     }
   },
   3: {
-    title: 'No business',
-    // the classification cards above (S.nbCls, empty = all) pick which classifications (columns) are counted;
-    // the columns not picked stay as empty space, so the map keeps its size
+    // the 3 No business map cards above (NB_MAPS: Past demand, Met / contacted, New; S.nbCls, empty = all) pick
+    // which classifications (columns) are counted; the columns not picked stay as empty space (the map keeps its size)
+    get title() {
+      return S.nbCls.length
+        ? NB_MAPS.filter(function (m) {
+            return S.nbCls.indexOf(m.k) >= 0;
+          })
+            .map(function (m) {
+              return m.t;
+            })
+            .join(' + ')
+        : 'No business';
+    },
     filter: function (a) {
-      return NB.indexOf(a.cls) >= 0 && (!S.nbCls.length || S.nbCls.indexOf(a.cls) >= 0);
+      return NB.indexOf(a.cls) >= 0 && (!S.nbCls.length || S.nbCls.indexOf(nbMap(a.cls)) >= 0);
     },
     colPick: function (c) {
-      return !S.nbCls.length || S.nbCls.indexOf(c.k) >= 0;
+      return !S.nbCls.length || S.nbCls.indexOf(nbMap(c.k)) >= 0;
     },
     x: 'Classification',
     y: 'Account category',
@@ -192,7 +202,7 @@ function isDemand(a) {
 
 // Two maps shown together (pick both cards): they share their layout, so their accounts go in one map.
 //   16 = 01 Current client + 06 Current demand (same rows and columns)
-//   25 = 02 Past pipeline + 05 Past clients (same rows; the columns of both: 0–6 months … 4+ years)
+//   25 = 02 Past clients + 05 Past business (same rows; the columns of both: 0–6 months … 4+ years)
 MAPS[16] = Object.assign({}, MAPS[1], {
   title: 'Current client + Current demand',
   hideCol: null, // the demand accounts are in P0
@@ -202,7 +212,7 @@ MAPS[16] = Object.assign({}, MAPS[1], {
   }
 });
 MAPS[25] = Object.assign({}, MAPS[2], {
-  title: 'Past pipeline + Past clients',
+  title: 'Past clients + Past business',
   parts: [2, 5],
   filter: function (a) {
     return MAPS[2].filter(a) || MAPS[5].filter(a);
@@ -217,6 +227,67 @@ MAPS[25] = Object.assign({}, MAPS[2], {
   }
 });
 
+/** The No business map (NB_MAPS key) of a classification. */
+function nbMap(cls) {
+  var m = NB_MAPS.filter(function (x) {
+    return x.cls.indexOf(cls) >= 0;
+  })[0];
+  return m ? m.k : '';
+}
+
+// The Business maps (and their combinations): the "Recurrent only" switch applies to them
+var BIZ_MAPS = [1, 6, 2, 5, 16, 25];
+
+/** The map column of an account on Recurrent and Class A: the Business map it is on (1, 6, 2, 5), its No business
+ *  map (NB_MAPS key), or 'none'. */
+function mapCol(a) {
+  var v = viewOf(a);
+  return v === 3 ? nbMap(a.cls) : v === 4 ? 'none' : v;
+}
+
+var MAP_COLS = [
+  { k: 1, t: 'Current client' },
+  { k: 6, t: 'Current demand' },
+  { k: 2, t: 'Past clients' },
+  { k: 5, t: 'Past business' }
+];
+
+// 07 Recurrent (Business, a view of its own): the accounts with at least S.recN "new" projects in P1 or later, not lost
+// (isRecurrent() in core/data-js; RECURRENT in core/config-js), by category × the Business map they are on
+MAPS[7] = {
+  title: 'Recurrent',
+  filter: function (a) {
+    return isRecurrent(a) && [1, 6, 2, 5].indexOf(viewOf(a)) >= 0;
+  },
+  x: 'Classification',
+  y: 'Account category',
+  cols: MAP_COLS,
+  rows: CATEGORY_ROWS,
+  place: function (a) {
+    return [catKey(a.category), mapCol(a)];
+  }
+};
+
+// 08 Class A: the accounts of the "class A" sheet (any map), by category × the map they are on
+MAPS[8] = {
+  title: 'Class A',
+  filter: function (a) {
+    return a.classA;
+  },
+  x: 'Classification',
+  y: 'Account category',
+  cols: MAP_COLS.concat(
+    NB_MAPS.map(function (m) {
+      return { k: m.k, t: m.t };
+    }),
+    [{ k: 'none', t: 'Not on a map', opt: 1 }]
+  ),
+  rows: CATEGORY_ROWS,
+  place: function (a) {
+    return [catKey(a.category), mapCol(a)];
+  }
+};
+
 /** Is map n on screen (alone, or as part of a combined map)? */
 function onView(n) {
   return S.view === n || (MAPS[S.view] && (MAPS[S.view].parts || []).indexOf(n) >= 0);
@@ -227,7 +298,8 @@ function placesOf(def, a) {
   return def.places ? def.places(a) : [def.place(a)];
 }
 
-/** The map an account is on: 01, 06, 02, 05 (Business) or 03 (No business); 4 = on none of them. */
+/** The map an account is on: 01, 06, 02, 05 (Business) or 03 (No business); 4 = on none of them.
+ *  (Recurrent 07 and Class A 08 are views across these maps, never an account's own map.) */
 function viewOf(a) {
   var order = [1, 6, 2, 5, 3];
   for (var i = 0; i < order.length; i++) if (MAPS[order[i]].filter(a)) return order[i];
