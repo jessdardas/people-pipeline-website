@@ -318,9 +318,14 @@ function renderTpTab(box, list) {
 /** The project table (Touchpoints view and account details): # | Project | Phase | Owner | Accounts; a click on a
  *  project opens its accounts × touchpoints table right under it. Owner = the project owner (OwnerName). */
 function tpProjTable(prj, ctx) {
-  var opened = ctx === 'det' ? S.tpOpenD : S.tpOpenP;
+  var opened = ctx === 'det' ? S.tpOpenD : S.tpOpenP,
+    det = ctx === 'det'; // account details: + the project category right after the project (blank when unknown)
   var h =
-    '<div class="tw tpw2"><table class="tb tpcomp"><thead><tr><th class="cnt">#</th><th class="pj">Project</th><th class="ph">Phase</th><th class="po">Owner</th><th class="pa">Accounts</th></tr></thead><tbody>';
+    '<div class="tw tpw2"><table class="tb tpcomp' +
+    (det ? ' det' : '') +
+    '"><thead><tr><th class="cnt">#</th><th class="pj">Project</th>' +
+    (det ? '<th class="pc">Category</th>' : '') +
+    '<th class="ph">Phase</th><th class="po">Owner</th><th class="pa">Accounts</th></tr></thead><tbody>';
   prj.forEach(function (x, n) {
     var open = !!opened[x.id],
       jsId = esc(x.id).replace(/'/g, '&#39;');
@@ -341,14 +346,16 @@ function tpProjTable(prj, ctx) {
       esc(x.name || '(no name)') +
       '</b>' +
       (x.open ? '' : ' <span class="meta">closed</span>') +
-      '</td><td class="ph"><span class="phb">' +
+      '</td>' +
+      (det ? '<td class="pc">' + esc(cap(x.o.cat)) + '</td>' : '') +
+      '<td class="ph"><span class="phb">' +
       esc(phaseLabel(x.ph)) +
       '</span></td><td class="po">' +
       esc(cap(projOwner(x.o.p)) || '—') +
       '</td><td class="pa">' +
       tpAccList(x) +
       '</td></tr>';
-    if (open) h += '<tr class="tpx"><td colspan="5">' + tpOpenHtml(x) + '</td></tr>';
+    if (open) h += '<tr class="tpx"><td colspan="' + (det ? 6 : 5) + '">' + tpOpenHtml(x) + '</td></tr>';
   });
   return h + '</tbody></table></div>';
 }
